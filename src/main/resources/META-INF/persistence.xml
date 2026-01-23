@@ -1,0 +1,26 @@
+<persistence xmlns="http://xmlns.jcp.org/xml/ns/persistence" version="2.2">
+    <persistence-unit name="hangarPU">
+        <class>de.thm.mni.model.Benutzer</class>
+        <class>de.thm.mni.model.AircraftOwner</class>
+        <class>de.thm.mni.model.HangarProvider</class>
+        <class>de.thm.mni.model.MaintenanceProvider</class>
+        <class>de.thm.mni.model.PartsProvider</class>
+        <class>de.thm.mni.model.Aircraft</class>
+        <class>de.thm.mni.model.Service</class>
+        <class>de.thm.mni.model.Parking</class>
+        <class>de.thm.mni.model.SparePart</class>
+        <class>de.thm.mni.model.RepairRequest</class>
+        <class>de.thm.mni.model.RepairAppointment</class>
+        <class>de.thm.mni.model.AircraftAppointment</class>
+
+        <properties>
+            <property name="javax.persistence.jdbc.driver" value="org.h2.Driver"/>
+            <property name="javax.persistence.jdbc.url" value="jdbc:h2:./data/hangar_db;AUTO_SERVER=TRUE"/>
+            <property name="javax.persistence.jdbc.user" value="sa"/>
+            <property name="javax.persistence.jdbc.password" value=""/>
+
+            <property name="hibernate.dialect" value="org.hibernate.dialect.H2Dialect"/>
+            <property name="hibernate.hbm2ddl.auto" value="create-drop"/>
+            <property name="hibernate.show_sql" value="true"/> </properties>
+    </persistence-unit>
+</persistence>
