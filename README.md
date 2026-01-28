@@ -113,10 +113,7 @@ Einige Beispielansichten aus der Anwendung:
   ![Flugzeugbesitzer-Profil](assets/profile-fb.png)
 
 - **Hangaranbieter‑Profil (HA)**  
-  ![Hangaranbieter-Profil](assets/image-f0283c7e-3976-4964-8d96-02de703f4eff.png)
-
-- **Hangaranbieter‑Profil – Schnellzugriff (HA)**  
-  ![Hangaranbieter-Profil Schnellzugriff](assets/hp-profile.png)
+  ![Hangaranbieter-Profil](assets/hp-profile.png)
 
 - **Meine Angebote (FB)**  
   ![Meine Angebote](assets/meine-angebote.png)

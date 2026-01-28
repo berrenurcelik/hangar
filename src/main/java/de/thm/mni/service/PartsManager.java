@@ -36,7 +36,7 @@ public class PartsManager {
         return partsCatalog.find(criteria.trim());
     }
 
-    /** StR.E.6 Schritt 7: Detailinformationen des Artikels */
+    /** FB.6 Schritt 7: Detailinformationen des Artikels */
     public SparePart getPartById(Long id) {
         return partsCatalog.getSparePart(id);
     }

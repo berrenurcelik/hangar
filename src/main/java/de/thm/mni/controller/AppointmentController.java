@@ -126,7 +126,7 @@ public class AppointmentController {
     }
     
     /**
-     * StR.L.7 Schritt 2: offene/akzeptierte Reparatur- und Wartungsanfragen für einen Hangaranbieter
+     * HA.7 Schritt 2: offene/akzeptierte Reparatur- und Wartungsanfragen für einen Hangaranbieter
      */
     @GetMapping("/maintenance-requests/{hpId}")
     public ResponseEntity<java.util.List<ServiceRequest>> getMaintenanceRequestsForProvider(@PathVariable Long hpId) {

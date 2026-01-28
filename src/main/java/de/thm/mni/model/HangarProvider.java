@@ -9,8 +9,8 @@ import java.util.Set;
 public class HangarProvider extends Benutzer {
     
     private String serviceHours;
-    private String city; // UC FB.2 / StR.L.1: Standort (Stadt)
-    private String costs;   // StR.L.1 / KD.HA.1: Kosten (z.B. „ab 50 €/Tag“)
+    private String city; // UC FB.2 : Standort (Stadt)
+    private String costs;   // HA.1: Kosten (z.B. „ab 50 €/Tag“)
     
     @ElementCollection
     private Set<String> storageConditions = new HashSet<>();

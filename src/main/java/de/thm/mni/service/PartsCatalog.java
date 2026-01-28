@@ -34,7 +34,7 @@ public class PartsCatalog {
     }
 
     /**
-     * StR.EA.3 Schritt 6: Artikelbestand nach Reservierung anpassen
+     * FB.10 Schritt 6: Artikelbestand nach Reservierung anpassen
      */
     public void update(SparePart sp) {
         repository.save(sp);

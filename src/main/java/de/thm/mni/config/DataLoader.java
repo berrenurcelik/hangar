@@ -178,7 +178,7 @@ public class DataLoader implements CommandLineRunner {
         sparePartRepository.save(part6);
         System.out.println("✅ 6 Spare Parts erstellt");
         
-        // 6. Aircrafts erstellen
+        // Aircrafts erstellen
         Aircraft aircraft1 = new Aircraft("10m x 15m", "D-ABCD", null, owner1);
         aircraft1.setSize(5);
         aircraft1.setMaintenanceStatus("Good");
@@ -451,7 +451,7 @@ public class DataLoader implements CommandLineRunner {
         offerRepository.save(o3);
         System.out.println("✅ 3 Offers erstellt (UC FB.5)");
         
-        // 11. Übergabe-/Rückgabetermine (StR.E.7)
+        // 11. Übergabe-/Rückgabetermine 
         Calendar cal = Calendar.getInstance();
         cal.add(Calendar.DAY_OF_MONTH, 5);
         cal.set(Calendar.HOUR_OF_DAY, 10);

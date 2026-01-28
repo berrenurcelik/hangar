@@ -38,7 +38,7 @@ public class ParkingController {
         }
     }
     
-    /** StR.L.3 Schritt 2: Liste der Stellplätze des Hangaranbieters */
+    /** HA.3 Schritt 2: Liste der Stellplätze des Hangaranbieters */
     @GetMapping("/by-provider")
     public ResponseEntity<List<Parking>> getParkingsByProviderEmail(@RequestParam String email) {
         HangarProvider hp = hangarProviderRepository.findByEmail(email).orElse(null);

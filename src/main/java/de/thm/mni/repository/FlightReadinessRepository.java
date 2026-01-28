@@ -9,6 +9,6 @@ import java.util.Optional;
 @Repository
 public interface FlightReadinessRepository extends JpaRepository<FlightReadiness, Long> {
 
-    /** StR.L.5: aktuelle Flugbereitschaft für ein Flugzeug (letzter Eintrag) */
+    /** aktuelle Flugbereitschaft für ein Flugzeug */
     Optional<FlightReadiness> findTopByAircraft_IdOrderByIdDesc(Long aircraftId);
 }

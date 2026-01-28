@@ -27,7 +27,7 @@ public class PartsController {
     }
     
     /**
-     * UC FB.6 / StR.E.6: searchParts – Suchkriterien, durchsucht Anbieterbestände.
+     * UC FB.6: searchParts – Suchkriterien, durchsucht Anbieterbestände.
      * Bei keiner Treffer: leere Liste (5a1), Frontend zeigt „keine Ergebnisse“.
      */
     @GetMapping("/search")
