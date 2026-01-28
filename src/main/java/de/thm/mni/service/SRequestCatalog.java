@@ -30,4 +30,9 @@ public class SRequestCatalog {
         return repository.findById(srId)
                 .orElseThrow(() -> new RuntimeException("ServiceRequest nicht gefunden mit ID: " + srId));
     }
+
+    /** HA.7 Schritt 2: offene/akzeptierte Anfragen eines Hangaranbieters (mit zugeordneter Werkstatt) */
+    public java.util.List<ServiceRequest> findForHangarProvider(Long hpId) {
+        return repository.findByHangarProvider_IdAndMaintenanceProviderIsNotNull(hpId);
+    }
 }

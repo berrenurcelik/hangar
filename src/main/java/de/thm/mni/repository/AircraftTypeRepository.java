@@ -6,4 +6,5 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface AircraftTypeRepository extends JpaRepository<AircraftType, Long> {
+    java.util.Optional<AircraftType> findByNameIgnoreCase(String name);
 }

@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -42,5 +43,15 @@ public class ACTypeCatalog {
         Map<Long, String> types = new HashMap<>();
         repository.findAll().forEach(at -> types.put(at.getId(), at.getName()));
         return types;
+    }
+
+    /** HA.4: Liste aller Flugzeugtypen (id, name, type, size) */
+    public List<AircraftType> getAllTypesAsList() {
+        return repository.findAll();
+    }
+
+    /** HA.4: Prüfung auf Duplikat */
+    public boolean existsByName(String name) {
+        return name != null && !name.isBlank() && repository.findByNameIgnoreCase(name.trim()).isPresent();
     }
 }

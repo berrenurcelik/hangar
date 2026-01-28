@@ -24,21 +24,20 @@ public class PartsManager {
     }
 
     /**
-     * UC FB.6: searchParts
+     * UC FB.6 / StR.E.6: searchParts
      * 1: found := find(criteria) -> PartsCatalog
      * 2a: [found = true] results(parts)
-     * 2b: [found = false] noPartsFound()
+     * 2b: [found = false] leere Liste (5a1: „keine Ergebnisse“ – weiter mit 2)
      */
     public List<SparePart> searchParts(String criteria) {
-        // 1: Parts aus PartsCatalog suchen
-        List<SparePart> found = partsCatalog.find(criteria);
-        
-        // 2a: [found = true] Parts zurückgeben
-        if (!found.isEmpty()) {
-            return found;
+        if (criteria == null || criteria.isBlank()) {
+            return sparePartRepository.findAll();
         }
-        
-        // 2b: [found = false] Exception werfen
-        throw new RuntimeException("Keine Parts gefunden für Kriterium: " + criteria);
+        return partsCatalog.find(criteria.trim());
+    }
+
+    /** StR.E.6 Schritt 7: Detailinformationen des Artikels */
+    public SparePart getPartById(Long id) {
+        return partsCatalog.getSparePart(id);
     }
 }

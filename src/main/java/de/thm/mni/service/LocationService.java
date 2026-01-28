@@ -27,11 +27,19 @@ public class LocationService {
         
         // 2a/2b: Prüfen ob gefunden
         if (found.isEmpty()) {
-            // 2b: Details nicht verfügbar
-            throw new RuntimeException("Location-Details nicht verfügbar für ID: " + locationID);
+            // 2b: Details nicht verfügbar (UC FB.3: 2a1)
+            throw new RuntimeException("Details momentan nicht verfügbar");
         }
         
         // 2a: Location-Details laden und zurückgeben
         return found.get();
+    }
+    
+    /**
+     * UC FB.3: Location-Details über Parking ID abrufen
+     * Flugzeugbesitzer wählt einen Standort aus der Suchergebnisliste (UC.FB.2)
+     */
+    public Location getLocationByParkingId(Long parkingId) {
+        return locationCatalog.getLocationByParkingId(parkingId);
     }
 }

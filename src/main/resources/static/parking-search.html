@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stellplatz suchen – Hangar Management System</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="css/auth.css" />
+</head>
+<body>
+  <div class="container">
+    <header class="app-header">
+      <h1>✈️ Stellplatz suchen</h1>
+      <div id="auth-header" class="auth-header"></div>
+    </header>
+
+    <div class="content">
+      <div id="search-alert"></div>
+
+      <!-- Stadtauswahl -->
+      <div class="search-section">
+        <h2>Stadt auswählen</h2>
+        <p>Wählen Sie eine Großstadt aus, um verfügbare Stellplätze zu finden:</p>
+        <div class="form-group">
+          <label for="citySelect">Stadt *</label>
+          <select id="citySelect" required>
+            <option value="">-- Bitte wählen --</option>
+          </select>
+        </div>
+        <button onclick="searchParking()">Stellplätze suchen</button>
+      </div>
+
+      <!-- Ergebnisse anzeigen -->
+      <div id="results-section" style="display: none;">
+        <h2>Verfügbare Stellplätze</h2>
+        <div id="results-info"></div>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Stellplatz-Nr.</th>
+              <th>Status</th>
+              <th>Standort</th>
+              <th>Hangaranbieter</th>
+              <th>Servicezeiten</th>
+              <th>Lagerbedingungen</th>
+              <th>Aktionen</th>
+            </tr>
+          </thead>
+          <tbody id="parkingResultsBody"></tbody>
+        </table>
+      </div>
+
+      <!-- Keine Ergebnisse -->
+      <div id="no-results" style="display: none;">
+        <div class="alert alert-error">
+          <h3>Keine passenden Stellplätze verfügbar</h3>
+          <p>In der gewählten Stadt wurden keine verfügbaren Stellplätze gefunden.</p>
+          <p>Bitte wählen Sie eine andere Stadt aus der Liste aus.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="bottom-nav">
+    <a href="index.html" class="bottom-nav__item bottom-nav__item--active">Home</a>
+    <a href="profile.html" class="bottom-nav__item">Profil</a>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script>
+    (function() {
+      const user = getCurrentUser();
+      const authHeader = document.getElementById('auth-header');
+
+      if (!user || user.role !== 'AIRCRAFT_OWNER') {
+        window.location.href = 'login.html';
+        return;
+      }
+
+      if (authHeader) {
+        authHeader.innerHTML = '<span class="auth-user">Hallo, ' + (user.name || user.email) + '</span> <a href="#" onclick="logout(); return false;" class="auth-link">Abmelden</a>';
+      }
+
+      // UC FB.2 Schritt 2: Liste der verfügbaren Städte laden
+      loadCities();
+    })();
+
+    async function loadCities() {
+      try {
+        const res = await fetch(API_BASE + '/search/cities');
+        const cities = await res.json();
+        const select = document.getElementById('citySelect');
+        cities.forEach(city => {
+          const option = document.createElement('option');
+          option.value = city;
+          option.textContent = city;
+          select.appendChild(option);
+        });
+      } catch (err) {
+        console.error('Fehler beim Laden der Städte:', err);
+        showAuthAlert(document.getElementById('search-alert'), 'Fehler beim Laden der Städte', 'error');
+      }
+    }
+
+    async function searchParking() {
+      const city = document.getElementById('citySelect').value;
+      if (!city) {
+        showAuthAlert(document.getElementById('search-alert'), 'Bitte wählen Sie eine Stadt aus', 'error');
+        return;
+      }
+
+      const alertEl = document.getElementById('search-alert');
+      const resultsSection = document.getElementById('results-section');
+      const noResults = document.getElementById('no-results');
+
+      try {
+        // UC FB.2 Schritt 4: Datenbank durchsuchen
+        const res = await fetch(API_BASE + '/search/available-parking?city=' + encodeURIComponent(city));
+        
+        if (res.status === 404) {
+          // UC FB.2 Schritt 3a1-3a2: Keine Stellplätze gefunden
+          const error = await res.json();
+          resultsSection.style.display = 'none';
+          noResults.style.display = 'block';
+          showAuthAlert(alertEl, error.message || 'Keine passenden Stellplätze verfügbar', 'error');
+          return;
+        }
+
+        const parkings = await res.json();
+        
+        if (parkings.length === 0) {
+          resultsSection.style.display = 'none';
+          noResults.style.display = 'block';
+          return;
+        }
+
+        // UC FB.2 Schritt 5: Ergebnisse anzeigen
+        noResults.style.display = 'none';
+        resultsSection.style.display = 'block';
+        
+        document.getElementById('results-info').innerHTML = 
+          `<p><strong>${parkings.length}</strong> verfügbare Stellplatz(e) in <strong>${city}</strong> gefunden.</p>`;
+
+        const tbody = document.getElementById('parkingResultsBody');
+        tbody.innerHTML = parkings.map(p => `
+          <tr>
+            <td>${p.number || '-'}</td>
+            <td><span class="badge badge-success">${p.status || '-'}</span></td>
+            <td>${p.siteStatus || '-'}</td>
+            <td>${p.hangarProvider ? p.hangarProvider.name : '-'}</td>
+            <td>${p.hangarProvider ? (p.hangarProvider.serviceHours || '-') : '-'}</td>
+            <td>${p.hangarProvider && p.hangarProvider.storageConditions ? 
+                Array.from(p.hangarProvider.storageConditions).join(', ') : '-'}</td>
+            <td>
+              <a href="location-details.html?parkingId=${p.id}" class="btn-link">Details anzeigen</a>
+            </td>
+          </tr>
+        `).join('');
+
+        showAuthAlert(alertEl, 'Suche erfolgreich abgeschlossen', 'success');
+      } catch (err) {
+        console.error('Fehler bei der Suche:', err);
+        showAuthAlert(alertEl, 'Fehler bei der Suche. Bitte versuchen Sie es später erneut.', 'error');
+      }
+    }
+  </script>
+  <style>
+    .search-section {
+      margin-bottom: 30px;
+      padding: 20px;
+      background: #f9f9f9;
+      border-radius: 8px;
+    }
+    .btn-primary {
+      display: inline-block;
+      padding: 12px 24px;
+      background: #667eea;
+      color: white;
+      text-decoration: none;
+      border-radius: 6px;
+      transition: background 0.3s;
+      margin-right: 10px;
+    }
+    .btn-primary:hover {
+      background: #5568d3;
+    }
+    .btn-link {
+      color: #667eea;
+      text-decoration: none;
+      font-weight: 600;
+      padding: 6px 12px;
+      border: 1px solid #667eea;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+    .btn-link:hover {
+      background: #667eea;
+      color: white;
+    }
+  </style>
+</body>
+</html>

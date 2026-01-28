@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Meine Flugzeugdaten – Hangar Management System</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="css/auth.css" />
+</head>
+<body>
+  <div class="container">
+    <header class="app-header">
+      <h1>✈️ Meine Flugzeugdaten</h1>
+      <div id="auth-header" class="auth-header"></div>
+    </header>
+
+    <div class="content">
+      <div id="flugzeug-alert"></div>
+
+      <!--  Übersicht der gespeicherten Flugzeuge -->
+      <div id="list-section">
+        <h2>Übersicht Ihrer Flugzeuge</h2>
+        <p id="no-aircrafts" class="alert-info" style="display: none;">Noch keine Flugzeuge angelegt. Nutzen Sie „Neues Flugzeug hinzufügen“.</p>
+        <table class="data-table" id="aircrafts-table" style="display: none;">
+          <thead>
+            <tr>
+              <th>Kennzeichen</th>
+              <th>Abmessungen</th>
+              <th>Größe</th>
+              <th>Wartungsstatus</th>
+              <th>Flugbereitschaft</th>
+              <th>Aktionen</th>
+            </tr>
+          </thead>
+          <tbody id="aircraftsTableBody"></tbody>
+        </table>
+        <button type="button" id="btn-add-new" class="btn-primary" style="margin-top: 16px;">Neues Flugzeug hinzufügen</button>
+      </div>
+
+      <!-- Eingabeformular (neu oder bearbeiten) -->
+      <div id="form-section" style="display: none;">
+        <h2 id="form-title">Flugzeuginformationen</h2>
+        <form id="aircraft-form">
+          <input type="hidden" id="aircraft-id" />
+          <div class="form-group">
+            <label for="reg-mark">Kennzeichen (Registrierung) *</label>
+            <input type="text" id="reg-mark" required placeholder="z.B. D-ABCD" />
+          </div>
+          <div class="form-group">
+            <label for="dimensions">Abmessungen *</label>
+            <input type="text" id="dimensions" required placeholder="z.B. 10m x 15m" />
+          </div>
+          <div class="form-group">
+            <label for="size">Größe (optional)</label>
+            <input type="number" id="size" placeholder="z.B. 4" min="1" />
+          </div>
+          <div class="form-group">
+            <label for="maintenance-status">Wartungsstatus (optional)</label>
+            <input type="text" id="maintenance-status" placeholder="z.B. In Ordnung" />
+          </div>
+          <div class="form-group">
+            <label for="flight-readiness">Flugbereitschaft (optional)</label>
+            <input type="text" id="flight-readiness" placeholder="z.B. Flugbereit" />
+          </div>
+          <button type="submit" class="btn-primary">Eingabe bestätigen</button>
+          <button type="button" id="btn-cancel-form" class="btn-secondary">Abbrechen</button>
+        </form>
+      </div>
+
+      <!-- Bestätigung nach Speichern -->
+      <div id="success-section" style="display: none;">
+        <div class="alert alert-success">
+          <h3>Daten gespeichert</h3>
+          <p id="success-msg">Die Flugzeuginformationen wurden im Profil gespeichert.</p>
+        </div>
+        <button type="button" id="btn-back-list" class="btn-primary">Zurück zur Übersicht</button>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="bottom-nav">
+    <a href="index.html" class="bottom-nav__item">Home</a>
+    <a href="profile.html" class="bottom-nav__item">Profil</a>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script>
+    let aircrafts = [];
+    let editId = null;
+
+    (function() {
+      const user = getCurrentUser();
+      const authHeader = document.getElementById('auth-header');
+      if (!user || user.role !== 'AIRCRAFT_OWNER') {
+        window.location.href = 'login.html';
+        return;
+      }
+      if (authHeader) {
+        authHeader.innerHTML = '<span class="auth-user">Hallo, ' + (user.name || user.email) + '</span> <a href="profile.html" class="auth-link">Profil</a> <a href="#" onclick="logout(); return false;" class="auth-link">Abmelden</a>';
+      }
+      loadAircrafts(user.email);
+    })();
+
+    async function loadAircrafts(email) {
+      const alertEl = document.getElementById('flugzeug-alert');
+      try {
+        const res = await fetch(API_BASE + '/aircraft-owner/aircrafts?email=' + encodeURIComponent(getCurrentUser().email));
+        if (!res.ok) {
+          showAuthAlert(alertEl, 'Flugzeugliste konnte nicht geladen werden.', 'error');
+          return;
+        }
+        aircrafts = await res.json();
+        renderList();
+      } catch (e) {
+        console.error(e);
+        showAuthAlert(alertEl, 'Fehler beim Laden der Flugzeuge.', 'error');
+      }
+    }
+
+    function renderList() {
+      const tbody = document.getElementById('aircraftsTableBody');
+      const table = document.getElementById('aircrafts-table');
+      const noEl = document.getElementById('no-aircrafts');
+      if (!aircrafts || aircrafts.length === 0) {
+        noEl.style.display = 'block';
+        table.style.display = 'none';
+        tbody.innerHTML = '';
+        return;
+      }
+      noEl.style.display = 'none';
+      table.style.display = 'table';
+      tbody.innerHTML = aircrafts.map(ac => `
+        <tr>
+          <td>${ac.registrationMark || '-'}</td>
+          <td>${ac.dimensions || '-'}</td>
+          <td>${ac.size != null ? ac.size : '-'}</td>
+          <td>${ac.maintenanceStatus || '-'}</td>
+          <td>${ac.flightReadiness || '-'}</td>
+          <td><button type="button" class="btn-edit" data-id="${ac.id}">Daten bearbeiten</button></td>
+        </tr>
+      `).join('');
+      tbody.querySelectorAll('.btn-edit').forEach(btn => {
+        btn.addEventListener('click', () => startEdit(Number(btn.getAttribute('data-id'))));
+      });
+    }
+
+    function showSection(name) {
+      document.getElementById('list-section').style.display = name === 'list' ? 'block' : 'none';
+      document.getElementById('form-section').style.display = name === 'form' ? 'block' : 'none';
+      document.getElementById('success-section').style.display = name === 'success' ? 'block' : 'none';
+    }
+
+    document.getElementById('btn-add-new').addEventListener('click', () => {
+      editId = null;
+      document.getElementById('aircraft-id').value = '';
+      document.getElementById('reg-mark').value = '';
+      document.getElementById('dimensions').value = '';
+      document.getElementById('size').value = '';
+      document.getElementById('maintenance-status').value = '';
+      document.getElementById('flight-readiness').value = '';
+      document.getElementById('form-title').textContent = 'Neues Flugzeug hinzufügen';
+      showSection('form');
+    });
+
+    async function startEdit(id) {
+      const alertEl = document.getElementById('flugzeug-alert');
+      try {
+        const res = await fetch(API_BASE + '/aircrafts/' + id);
+        if (!res.ok) {
+          showAuthAlert(alertEl, 'Flugzeugdaten konnten nicht geladen werden.', 'error');
+          return;
+        }
+        const ac = await res.json();
+        editId = ac.id;
+        document.getElementById('aircraft-id').value = ac.id;
+        document.getElementById('reg-mark').value = ac.registrationMark || '';
+        document.getElementById('dimensions').value = ac.dimensions || '';
+        document.getElementById('size').value = ac.size != null ? ac.size : '';
+        document.getElementById('maintenance-status').value = ac.maintenanceStatus || '';
+        document.getElementById('flight-readiness').value = ac.flightReadiness || '';
+        document.getElementById('form-title').textContent = 'Daten bearbeiten';
+        showSection('form');
+      } catch (e) {
+        console.error(e);
+        showAuthAlert(alertEl, 'Fehler beim Laden.', 'error');
+      }
+    }
+
+    document.getElementById('btn-cancel-form').addEventListener('click', () => {
+      showSection('list');
+    });
+
+    function validateForm() {
+      const reg = (document.getElementById('reg-mark').value || '').trim();
+      const dim = (document.getElementById('dimensions').value || '').trim();
+      const missing = [];
+      if (!reg) missing.push('Kennzeichen (Registrierung)');
+      if (!dim) missing.push('Abmessungen');
+      return missing;
+    }
+
+    document.getElementById('aircraft-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const alertEl = document.getElementById('flugzeug-alert');
+      const missing = validateForm();
+      if (missing.length > 0) {
+        showAuthAlert(alertEl, 'Pflichtfelder fehlen oder sind fehlerhaft: ' + missing.join(', ') + '. Bitte fehlende Werte korrigieren.', 'error');
+        return;
+      }
+      const payload = {
+        registrationMark: document.getElementById('reg-mark').value.trim(),
+        dimensions: document.getElementById('dimensions').value.trim(),
+        size: document.getElementById('size').value ? parseInt(document.getElementById('size').value, 10) : null,
+        maintenanceStatus: (document.getElementById('maintenance-status').value || '').trim() || null,
+        flightReadiness: (document.getElementById('flight-readiness').value || '').trim() || null
+      };
+      const user = getCurrentUser();
+      try {
+        if (editId == null) {
+          const res = await fetch(API_BASE + '/aircraft-owner/aircrafts?email=' + encodeURIComponent(user.email), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          const data = await res.json().catch(() => ({}));
+          if (res.ok) {
+            document.getElementById('success-msg').textContent = 'Die Flugzeuginformationen wurden gespeichert.';
+            showSection('success');
+            loadAircrafts(user.email);
+          } else {
+            const msg = (data.message || data.error || 'Speichern fehlgeschlagen.') + (data.missingFields && data.missingFields.length ? ' Fehlende Felder: ' + data.missingFields.join(', ') : '');
+            showAuthAlert(alertEl, msg, 'error');
+          }
+        } else {
+          const res = await fetch(API_BASE + '/aircrafts/' + editId, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          const data = await res.json().catch(() => ({}));
+          if (res.ok) {
+            document.getElementById('success-msg').textContent = 'Die Flugzeuginformationen wurden aktualisiert.';
+            showSection('success');
+            loadAircrafts(user.email);
+          } else {
+            const msg = (data.message || data.error || 'Aktualisierung fehlgeschlagen.') + (data.missingFields && data.missingFields.length ? ' Fehlende Felder: ' + data.missingFields.join(', ') : '');
+            showAuthAlert(alertEl, msg, 'error');
+          }
+        }
+      } catch (err) {
+        console.error(err);
+        showAuthAlert(alertEl, 'Netzwerkfehler beim Speichern.', 'error');
+      }
+    });
+
+    document.getElementById('btn-back-list').addEventListener('click', () => {
+      showSection('list');
+    });
+  </script>
+  <style>
+    .alert-info { padding: 12px; background: #eff6ff; border-radius: 6px; color: #1e40af; margin: 16px 0; }
+    .btn-primary { padding: 12px 24px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; margin-right: 10px; }
+    .btn-secondary { padding: 12px 24px; background: transparent; color: #667eea; border: 1px solid #667eea; border-radius: 6px; cursor: pointer; text-decoration: none; display: inline-block; margin-right: 10px; }
+    .btn-edit { padding: 8px 14px; background: #4a5568; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9em; }
+    .btn-edit:hover { background: #2d3748; }
+  </style>
+</body>
+</html>

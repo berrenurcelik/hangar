@@ -8,8 +8,100 @@
   </head>
   <body>
     <div class="container">
-      <h1>✈️ Hangar Management System</h1>
+      <header class="app-header">
+        <h1>✈️ Hangar Management System</h1>
+        <div id="auth-header" class="auth-header"></div>
+      </header>
 
+      <!-- Dashboard abhängig von Rolle / Login -->
+      <div id="user-dashboard" class="content" style="display: none;">
+        <h2 id="dashboard-title">Willkommen im Hangar Management System</h2>
+        <p id="dashboard-subtitle" style="margin-top: 10px; margin-bottom: 20px;">
+          Nutzen Sie die wichtigsten Funktionen über die Kacheln unten – z.&nbsp;B.
+          <strong>Profil</strong>, <strong>Flugzeugdaten</strong>, <strong>Stellplatzsuche</strong>,
+          <strong>Wartungsdaten</strong> oder <strong>Termine</strong>.
+        </p>
+
+        <!-- Nur Flugzeugbesitzer -->
+        <div id="dashboard-owner" class="dashboard-grid" style="display: none;">
+          <div class="dashboard-card">
+            <h3>Meine Flugzeuge</h3>
+            <p>Flugzeugdaten anlegen und aktualisieren.</p>
+            <a href="meine-flugzeuge.html" class="btn-primary">Flugzeugdaten öffnen</a>
+          </div>
+          <div class="dashboard-card">
+            <h3>Stellplatz &amp; Angebote</h3>
+            <p>Stellplätze suchen, Standortdetails einsehen und Angebote verwalten.</p>
+            <a href="parking-search.html" class="btn-secondary">Stellplatz suchen</a>
+            <br/><br/>
+            <a href="meine-angebote.html" class="btn-secondary">Meine Angebote</a>
+          </div>
+          <div class="dashboard-card">
+            <h3>Ersatzteile &amp; Reservierungen</h3>
+            <p>Ersatzteile suchen und Reservierungen anlegen.</p>
+            <a href="ersatzteile.html" class="btn-primary">Ersatzteile anzeigen</a>
+          </div>
+          <div class="dashboard-card">
+            <h3>Termine &amp; Zusatzservices</h3>
+            <p>Übergabe-/Rückgabetermine und Zusatzservice-Buchungen im Blick behalten.</p>
+            <a href="uebergabe-termine.html" class="btn-secondary">Termine verwalten</a>
+            <br/><br/>
+            <a href="zusatzservices.html" class="btn-secondary">Zusatzservices buchen</a>
+          </div>
+        </div>
+
+        <!-- Nur Hangaranbieter -->
+        <div id="dashboard-hp" class="dashboard-grid" style="display: none;">
+          <div class="dashboard-card">
+            <h3>Stellplätze</h3>
+            <p>Stellplatzkapazitäten und Status pflegen.</p>
+            <a href="stellplaetze.html" class="btn-primary">Stellplätze öffnen</a>
+          </div>
+          <div class="dashboard-card">
+            <h3>Flugzeuge im Hangar</h3>
+            <p>Wartungs- und Flugbereitschaftsdaten verwalten.</p>
+            <a href="flugzeuge-im-hangar.html" class="btn-secondary">Flugzeuge anzeigen</a>
+          </div>
+          <div class="dashboard-card">
+            <h3>Wartungsanfragen</h3>
+            <p>Reparatur- / Wartungsanfragen an Werkstätten stellen.</p>
+            <a href="reparatur-wartungsanfrage.html" class="btn-primary">Anfrage erstellen</a>
+          </div>
+          <div class="dashboard-card">
+            <h3>Wartungstermine</h3>
+            <p>Bestätigte Anfragen in Termine überführen.</p>
+            <a href="wartungstermine.html" class="btn-secondary">Termine planen</a>
+          </div>
+          <div class="dashboard-card">
+            <h3>Terminanfragen</h3>
+            <p>Übergabe- und Rückgabeterminanfragen der Flugzeugbesitzer bearbeiten.</p>
+            <a href="terminanfragen.html" class="btn-secondary">Terminanfragen öffnen</a>
+          </div>
+        </div>
+
+        <!-- Gast (nicht eingeloggt) – beide Rollen kurz vorstellen -->
+        <div id="dashboard-guest" class="dashboard-grid" style="display: none;">
+          <div class="dashboard-card">
+            <h3>Für Flugzeugbesitzer</h3>
+            <ul>
+              <li>Flugzeuge und Wartungsstatus verwalten</li>
+              <li>Stellplätze suchen und Angebote annehmen</li>
+              <li>Ersatzteile und Zusatzservices buchen</li>
+            </ul>
+          </div>
+          <div class="dashboard-card">
+            <h3>Für Hangaranbieter</h3>
+            <ul>
+              <li>Stellplätze und Einlagerungsservices anbieten</li>
+              <li>Wartungs- &amp; Flugbereitschaftsdaten pflegen</li>
+              <li>Reparatur- / Wartungsanfragen und Termine verwalten</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Admin-Dashboard (nur sichtbar, wenn kein Benutzer eingeloggt ist, z.B. für Tests/Administration) -->
+      <div id="admin-dashboard">
       <div class="tabs">
         <button class="tab active" onclick="showTab('aircraft-owners')">
           Aircraft Owners
@@ -383,8 +475,76 @@
           </table>
         </div>
       </div>
+      </div> <!-- /admin-dashboard -->
     </div>
 
+    <div class="bottom-nav" id="bottom-nav">
+      <a href="index.html" class="bottom-nav__item bottom-nav__item--active" id="bottom-home">Home</a>
+      <a href="profile.html" class="bottom-nav__item" id="bottom-profile">Profil</a>
+    </div>
+
+    <script src="js/auth.js"></script>
     <script src="js/app.js"></script>
+    <script>
+      (function () {
+        var user = getCurrentUser();
+        var el = document.getElementById('auth-header');
+        var adminDashboard = document.getElementById('admin-dashboard');
+        var userDashboard = document.getElementById('user-dashboard');
+        var dashOwner = document.getElementById('dashboard-owner');
+        var dashHp = document.getElementById('dashboard-hp');
+        var dashGuest = document.getElementById('dashboard-guest');
+        var dashTitle = document.getElementById('dashboard-title');
+        var dashSubtitle = document.getElementById('dashboard-subtitle');
+        var bottomProfile = document.getElementById('bottom-profile');
+
+        if (!el) return;
+        if (user && user.name) {
+          var roleLabel = user.role === 'AIRCRAFT_OWNER'
+            ? 'Flugzeugbesitzer'
+            : user.role === 'HANGAR_PROVIDER'
+              ? 'Hangaranbieter'
+              : user.role || '';
+          el.innerHTML =
+            '<span class="auth-user">Hallo, ' +
+            (user.name || user.email) +
+            ' <span class="auth-role">(' +
+            roleLabel +
+            ')</span></span> ' +
+            '<a href="#" onclick="logout(); return false;" class="auth-link">Abmelden</a>';
+
+          // Für normale Benutzer:  Dashboard, Admin-Tab-UI ausblenden
+          if (adminDashboard) adminDashboard.style.display = 'none';
+          if (userDashboard) userDashboard.style.display = 'block';
+
+          if (dashGuest) dashGuest.style.display = 'none';
+          if (user.role === 'AIRCRAFT_OWNER') {
+            if (dashOwner) dashOwner.style.display = 'grid';
+            if (dashHp) dashHp.style.display = 'none';
+            if (dashTitle) dashTitle.textContent = 'Willkommen im Hangar Management System';
+            if (dashSubtitle) dashSubtitle.textContent = 'Wählen Sie eine Funktion aus, um Ihre Flugzeug- und Buchungsdaten zu verwalten.';
+            if (bottomProfile) bottomProfile.href = 'profile.html';
+          } else if (user.role === 'HANGAR_PROVIDER') {
+          if (dashOwner) dashOwner.style.display = 'none';
+          if (dashHp) dashHp.style.display = 'grid';
+          if (dashTitle) dashTitle.textContent = 'Willkommen im Hangar Management System';
+          if (dashSubtitle) dashSubtitle.textContent = 'Wählen Sie eine Funktion aus, um Stellplätze, Wartungsdaten und Termine zu verwalten.';
+          if (bottomProfile) bottomProfile.href = 'hp-profile.html';
+          }
+        } else {
+          // Kein Login: Begrüßungs-Dashboard mit beiden Rollen anzeigen
+          el.innerHTML =
+            '<a href="login.html" class="auth-link">Anmelden</a> &nbsp;|&nbsp; <a href="register.html" class="auth-link">Registrieren</a>';
+          if (adminDashboard) adminDashboard.style.display = 'none';
+          if (userDashboard) userDashboard.style.display = 'block';
+          if (dashOwner) dashOwner.style.display = 'none';
+          if (dashHp) dashHp.style.display = 'none';
+          if (dashGuest) dashGuest.style.display = 'grid';
+          if (dashTitle) dashTitle.textContent = 'Willkommen im Hangar Management System';
+          if (dashSubtitle) dashSubtitle.textContent = 'Melden Sie sich an, um Stellplätze, Flugzeuge und Wartungsdaten zu verwalten.';
+          if (bottomProfile) bottomProfile.href = 'login.html';
+        }
+      })();
+    </script>
   </body>
 </html>

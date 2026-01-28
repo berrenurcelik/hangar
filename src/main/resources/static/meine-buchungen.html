@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Buchungsübersicht – Hangar Management System</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="css/auth.css" />
+</head>
+<body>
+  <div class="container">
+    <header class="app-header">
+      <h1>✈️ Buchungsübersicht</h1>
+      <div id="auth-header" class="auth-header"></div>
+    </header>
+
+    <div class="content">
+      <div id="buchungen-alert"></div>
+      <p class="hint">Ihre gebuchten Zusatzservices</p>
+      <p id="no-bookings" class="hint" style="display: none;">Keine Buchungen vorhanden.</p>
+      <table class="data-table" id="buchungen-table" style="display: none;">
+        <thead>
+          <tr>
+            <th>Typ</th>
+            <th>Services</th>
+            <th>Zeitfenster</th>
+            <th>Kosten</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="buchungen-tbody"></tbody>
+      </table>
+      <div style="margin-top: 20px;">
+        <a href="zusatzservices.html" class="btn-primary">Zusatzservices buchen</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom-nav">
+    <a href="index.html" class="bottom-nav__item">Home</a>
+    <a href="profile.html" class="bottom-nav__item">Profil</a>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script>
+    (function() {
+      const user = getCurrentUser();
+      const authHeader = document.getElementById('auth-header');
+      if (!user || user.role !== 'AIRCRAFT_OWNER') {
+        window.location.href = 'login.html';
+        return;
+      }
+      if (authHeader) {
+        authHeader.innerHTML = '<span class="auth-user">Hallo, ' + (user.name || user.email) + '</span> <a href="profile.html" class="auth-link">Profil</a> <a href="#" onclick="logout(); return false;" class="auth-link">Abmelden</a>';
+      }
+      loadBookings(user.email);
+    })();
+
+    async function loadBookings(email) {
+      const alertEl = document.getElementById('buchungen-alert');
+      try {
+        const res = await fetch(API_BASE + '/booking/by-owner?email=' + encodeURIComponent(email));
+        const list = res.ok ? await res.json() : [];
+        const noEl = document.getElementById('no-bookings');
+        const tbl = document.getElementById('buchungen-table');
+        const tbody = document.getElementById('buchungen-tbody');
+        if (!list || list.length === 0) {
+          noEl.style.display = 'block';
+          tbl.style.display = 'none';
+          return;
+        }
+        noEl.style.display = 'none';
+        tbl.style.display = 'table';
+        tbody.innerHTML = list.map(b => `
+          <tr>
+            <td>${b.type || '-'}</td>
+            <td>${b.services || '-'}</td>
+            <td>${b.timeWindow || '-'}</td>
+            <td>${b.cost != null ? b.cost + ' €' : '-'}</td>
+            <td>${b.status || '-'}</td>
+          </tr>
+        `).join('');
+      } catch (e) {
+        console.error(e);
+        showAuthAlert(alertEl, 'Fehler beim Laden.', 'error');
+      }
+    }
+  </script>
+  <style>
+    .hint { color: #666; margin: 10px 0; }
+    .btn-primary { display: inline-block; padding: 12px 24px; background: #667eea; color: white; text-decoration: none; border-radius: 6px; margin-right: 10px; }
+    .btn-secondary { display: inline-block; padding: 12px 24px; color: #667eea; text-decoration: none; margin-top: 10px; }
+  </style>
+</body>
+</html>

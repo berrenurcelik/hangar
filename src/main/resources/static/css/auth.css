@@ -1,0 +1,119 @@
+/* Login & Register pages */
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.auth-box {
+  background: white;
+  padding: 40px;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  max-width: 420px;
+  width: 100%;
+}
+
+.auth-box h1 {
+  color: #667eea;
+  margin-bottom: 8px;
+  font-size: 1.8em;
+  text-align: center;
+  text-shadow: none;
+}
+
+.auth-box h2 {
+  color: #333;
+  margin-bottom: 24px;
+  font-size: 1.3em;
+  text-align: center;
+  font-weight: 600;
+}
+
+.auth-links {
+  margin-top: 20px;
+  text-align: center;
+  color: #666;
+  font-size: 14px;
+}
+
+.auth-links a {
+  color: #667eea;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.auth-links a:hover {
+  text-decoration: underline;
+}
+
+.auth-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.auth-tabs .tab {
+  flex: 1;
+  padding: 10px 16px;
+  font-size: 14px;
+  text-align: center;
+  background: #eee;
+  color: #333;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.auth-tabs .tab:hover {
+  background: #e0e0e0;
+  border-color: #ccc;
+}
+
+.auth-tabs .tab.active {
+  background: #667eea;
+  color: white;
+  border-color: #667eea;
+}
+
+.auth-form-section {
+  display: none;
+}
+
+.auth-form-section.active {
+  display: block;
+}
+
+.auth-form-section h3 {
+  color: #333;
+  margin-bottom: 16px;
+  font-size: 1.1em;
+}
+
+.auth-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  margin-left: 8px;
+}
+
+.auth-tag.aircraft-owner {
+  background: #d1ecf1;
+  color: #0c5460;
+}
+
+.auth-tag.hangar-provider {
+  background: #d4edda;
+  color: #155724;
+}
+
+/* Auth alert in box */
+#login-alert .alert,
+#register-alert .alert {
+  margin-bottom: 16px;
+}

@@ -6,4 +6,6 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface HangarProviderRepository extends JpaRepository<HangarProvider, Long> {
+
+    java.util.Optional<HangarProvider> findByEmail(String email);
 }

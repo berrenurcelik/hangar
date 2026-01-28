@@ -27,11 +27,19 @@ public class SearchParking {
         
         // 2a/2b: Prüfen ob etwas gefunden wurde
         if (parkings.isEmpty()) {
-            // 2b: Keine Parkplätze gefunden
-            throw new RuntimeException("Keine verfügbaren Parkplätze in " + city + " gefunden");
+            // 2b: Keine Parkplätze gefunden (UC FB.2: 3a1, 3a2)
+            throw new RuntimeException("Keine passenden Stellplätze verfügbar");
         }
         
         // 2a: Parkplätze zurückgeben
         return parkings;
+    }
+    
+    /**
+     * UC FB.2: Liste der verfügbaren Großstädte
+     * Gibt alle Städte zurück, in denen HangarProvider existieren
+     */
+    public List<String> getAvailableCities() {
+        return parkingCatalog.getAvailableCities();
     }
 }

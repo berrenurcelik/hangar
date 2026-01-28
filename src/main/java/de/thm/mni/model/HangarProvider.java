@@ -9,6 +9,8 @@ import java.util.Set;
 public class HangarProvider extends Benutzer {
     
     private String serviceHours;
+    private String city; // UC FB.2 / StR.L.1: Standort (Stadt)
+    private String costs;   // StR.L.1 / KD.HA.1: Kosten (z.B. „ab 50 €/Tag“)
     
     @ElementCollection
     private Set<String> storageConditions = new HashSet<>();
@@ -48,12 +50,21 @@ public class HangarProvider extends Benutzer {
      */
     public HangarProvider(String name, String email, String password, String contact, 
                           String serviceHours, Set<String> storageConditions) {
-        // Schritt 1: Benutzer erstellen
+        this(name, email, password, contact, serviceHours, "", null, storageConditions);
+    }
+    
+    public HangarProvider(String name, String email, String password, String contact, 
+                          String serviceHours, String city, Set<String> storageConditions) {
+        this(name, email, password, contact, serviceHours, city, null, storageConditions);
+    }
+    
+    public HangarProvider(String name, String email, String password, String contact, 
+                          String serviceHours, String city, String costs, Set<String> storageConditions) {
         super(name, email, password, contact, Role.HANGAR_PROVIDER);
-        
-        // Schritt 2: HangarProvider-spezifische Daten setzen
         this.serviceHours = serviceHours;
-        this.storageConditions = storageConditions;
+        this.city = city;
+        this.costs = costs;
+        this.storageConditions = storageConditions != null ? storageConditions : new HashSet<>();
     }
     
     // Business Methods
@@ -155,6 +166,22 @@ public class HangarProvider extends Benutzer {
     
     public void setSelectedAircrafts(Set<Aircraft> selectedAircrafts) {
         this.selectedAircrafts = selectedAircrafts;
+    }
+    
+    public String getCity() {
+        return city;
+    }
+    
+    public void setCity(String city) {
+        this.city = city;
+    }
+    
+    public String getCosts() {
+        return costs;
+    }
+    
+    public void setCosts(String costs) {
+        this.costs = costs;
     }
     
     /**

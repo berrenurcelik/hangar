@@ -26,15 +26,20 @@ public class ArticleReservationService {
     @Autowired
     private ArticleReservationCatalog articleReservationCatalog;
 
+    /** FB.10 5a/5a1: Kennung, wenn Artikel nicht verfügbar */
+    public static final String ERROR_ARTIKEL_NICHT_VERFUEGBAR = "ARTIKEL_NICHT_VERFUEGBAR";
+
     /**
-     * UC FB.10: createArticleReservation
+     * UC FB.10 / StR.EA.3: createArticleReservation
      * 
      * Im Diagramm:
      * 1: aco := getACO(ACOId) -> ACOCatalog
      * 2: ps := getPS(PSId) -> PSCatalog
      * 3: sp := getSparePart(sparePartID) -> SparePartCatalog
+     * FB:10 - Schritt 5/5a: Verfügbarkeit prüfen; bei 5a RuntimeException(ERROR_ARTIKEL_NICHT_VERFUEGBAR)
      * 4: create(sp, quantity, status, aco, ps) -> ar:ArticleReservation
      * 4.1: add(ar) -> ArticleReservationCatalog
+     * FB.10 Schritt 6: Artikelbestand anpassen
      */
     @Transactional
     public ArticleReservation createArticleReservation(Long acoId, Long psId, Long sparePartID, 
@@ -49,11 +54,25 @@ public class ArticleReservationService {
         // 3: SparePart aus SparePartCatalog holen
         SparePart sp = partsCatalog.getSparePart(sparePartID);
         
+        // FB.10 Schritt 5 / 5a: Verfügbarkeit prüfen
+        int available = sp.getQuantity() != null ? sp.getQuantity() : 0;
+        if (available < quantity || !Boolean.TRUE.equals(sp.getAvailability())) {
+            throw new RuntimeException(ERROR_ARTIKEL_NICHT_VERFUEGBAR);
+        }
+        
         // 4: ArticleReservation erstellen
         ArticleReservation ar = new ArticleReservation(sp, quantity, status, aco, ps);
         
         // 4.1: Zum ArticleReservationCatalog hinzufügen
         articleReservationCatalog.add(ar);
+        
+        // FB.10 Schritt 6: Artikelbestand anpassen
+        int newQty = available - quantity;
+        sp.setQuantity(newQty);
+        if (newQty <= 0) {
+            sp.setAvailability(false);
+        }
+        partsCatalog.update(sp);
         
         return ar;
     }

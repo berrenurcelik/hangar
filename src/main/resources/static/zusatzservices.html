@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Zusatzservices buchen – Hangar Management System</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="css/auth.css" />
+</head>
+<body>
+  <div class="container">
+    <header class="app-header">
+      <h1>✈️ Zusatzservices</h1>
+      <div id="auth-header" class="auth-header"></div>
+    </header>
+
+    <div class="content">
+      <div id="zusatz-alert"></div>
+
+      <!-- FB.8 Schritt 1–2: Menüpunkt Zusatzservices, Liste angebotener Services -->
+      <div id="services-section">
+        <h2>Angebotene Zusatzservices</h2>
+        <p id="no-services" class="alert-info" style="display: none;">Derzeit keine Zusatzservices angeboten.</p>
+        <div id="services-list" class="service-cards"></div>
+      </div>
+
+      <!-- Schritt 3–5: Auswahl, Details, Bestätigung -->
+      <div id="selection-section" style="display: none;">
+        <h2>Ausgewählte Services</h2>
+        <div id="selection-details" class="detail-section"></div>
+        <div class="form-group">
+          <label for="time-window">Zeitfenster (optional)</label>
+          <input type="text" id="time-window" placeholder="z.B. Mo–Fr 9–17 oder nächste Woche" />
+        </div>
+        <button type="button" id="btn-confirm-booking" class="btn-primary">Buchung bestätigen</button>
+        <button type="button" id="btn-back-selection" class="btn-secondary">Zurück zur Auswahl</button>
+      </div>
+
+      <!-- Schritt 6–7: Erfolg, Hinweis auf Buchungsübersicht -->
+      <div id="success-section" style="display: none;">
+        <div class="alert alert-success">
+          <h3>Buchung erstellt</h3>
+          <p id="success-msg"></p>
+          <p>Der Hangaranbieter wurde über die neue Buchung informiert.</p>
+        </div>
+        <a href="zusatzservices.html" class="btn-primary">Weitere Services buchen</a>
+        <a href="meine-buchungen.html" class="btn-primary">Buchungsübersicht</a>
+      </div>
+
+      <div style="margin-top: 24px;">
+        <a href="meine-buchungen.html" class="btn-primary">Buchungsübersicht</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom-nav">
+    <a href="index.html" class="bottom-nav__item">Home</a>
+    <a href="profile.html" class="bottom-nav__item">Profil</a>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script>
+    let allServices = [];
+    let selectedIds = new Set();
+    let ownerId = null;
+
+    (function() {
+      const user = getCurrentUser();
+      const authHeader = document.getElementById('auth-header');
+      if (!user || user.role !== 'AIRCRAFT_OWNER') {
+        window.location.href = 'login.html';
+        return;
+      }
+      if (authHeader) {
+        authHeader.innerHTML = '<span class="auth-user">Hallo, ' + (user.name || user.email) + '</span> <a href="profile.html" class="auth-link">Profil</a> <a href="#" onclick="logout(); return false;" class="auth-link">Abmelden</a>';
+      }
+      loadOwnerAndServices(user.email);
+    })();
+
+    async function loadOwnerAndServices(email) {
+      const alertEl = document.getElementById('zusatz-alert');
+      try {
+        const [profileRes, servicesRes] = await Promise.all([
+          fetch(API_BASE + '/aircraft-owner/profile/by-email?email=' + encodeURIComponent(email)),
+          fetch(API_BASE + '/services')
+        ]);
+        if (profileRes.ok) {
+          const profile = await profileRes.json();
+          ownerId = profile.id;
+        }
+        allServices = servicesRes.ok ? await servicesRes.json() : [];
+        renderServices();
+      } catch (e) {
+        console.error(e);
+        showAuthAlert(alertEl, 'Fehler beim Laden.', 'error');
+      }
+    }
+
+    function renderServices() {
+      const noEl = document.getElementById('no-services');
+      const list = document.getElementById('services-list');
+      if (!allServices || allServices.length === 0) {
+        noEl.style.display = 'block';
+        list.innerHTML = '';
+        return;
+      }
+      noEl.style.display = 'none';
+      list.innerHTML = allServices.map(s => `
+        <div class="service-card" data-id="${s.id}">
+          <input type="checkbox" class="service-cb" data-id="${s.id}" id="cb-${s.id}" />
+          <label for="cb-${s.id}">
+            <strong>${s.name || '-'}</strong>
+            <span class="price">${s.price != null ? s.price + ' €' : '-'}</span>
+            <p class="desc">${(s.description || '').substring(0, 80)}${(s.description||'').length > 80 ? '…' : ''}</p>
+          </label>
+        </div>
+      `).join('');
+      list.querySelectorAll('.service-cb').forEach(cb => {
+        cb.addEventListener('change', () => {
+          if (cb.checked) selectedIds.add(Number(cb.getAttribute('data-id')));
+          else selectedIds.delete(Number(cb.getAttribute('data-id')));
+          updateSelectionSection();
+        });
+      });
+    }
+
+    function updateSelectionSection() {
+      if (selectedIds.size === 0) {
+        document.getElementById('selection-section').style.display = 'none';
+        return;
+      }
+      document.getElementById('selection-section').style.display = 'block';
+      const selected = allServices.filter(s => selectedIds.has(s.id));
+      let total = 0;
+      const names = [];
+      selected.forEach(s => { total += s.price != null ? s.price : 0; names.push(s.name || ''); });
+      document.getElementById('selection-details').innerHTML = `
+        <p><strong>Gewählte Services:</strong> ${names.join(', ')}</p>
+        <p><strong>Gesamtkosten:</strong> ${total} €</p>
+      `;
+    }
+
+    document.getElementById('btn-back-selection')?.addEventListener('click', () => {
+      document.getElementById('selection-section').style.display = 'none';
+      selectedIds.clear();
+      renderServices();
+    });
+
+    document.getElementById('btn-confirm-booking')?.addEventListener('click', async () => {
+      if (!ownerId || selectedIds.size === 0) return;
+      const alertEl = document.getElementById('zusatz-alert');
+      const timeWindow = (document.getElementById('time-window')?.value || '').trim();
+      try {
+        const res = await fetch(API_BASE + '/booking/book-zusatzservices', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            acoId: ownerId,
+            timeWindow: timeWindow || '–',
+            serviceIds: Array.from(selectedIds)
+          })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.id) {
+          document.getElementById('services-section').style.display = 'none';
+          document.getElementById('selection-section').style.display = 'none';
+          document.getElementById('success-section').style.display = 'block';
+          document.getElementById('success-msg').textContent = 'Die Buchung wurde im System angelegt und erscheint in Ihrer Buchungsübersicht.';
+        } else {
+          showAuthAlert(alertEl, 'Buchung fehlgeschlagen.', 'error');
+        }
+      } catch (e) {
+        console.error(e);
+        showAuthAlert(alertEl, 'Fehler beim Buchen.', 'error');
+      }
+    });
+  </script>
+  <style>
+    .service-cards { display: flex; flex-wrap: wrap; gap: 16px; margin: 16px 0; }
+    .service-card { border: 1px solid #ddd; border-radius: 8px; padding: 16px; min-width: 220px; background: #fafafa; }
+    .service-card label { cursor: pointer; display: block; }
+    .service-card .price { color: #667eea; font-weight: bold; margin-left: 8px; }
+    .service-card .desc { font-size: 0.9em; color: #666; margin-top: 8px; }
+    .detail-section { margin: 16px 0; padding: 16px; background: #f0f4ff; border-radius: 8px; }
+    .btn-primary { padding: 12px 24px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; margin-right: 10px; }
+    .btn-secondary { padding: 12px 24px; background: transparent; color: #667eea; border: 1px solid #667eea; border-radius: 6px; cursor: pointer; text-decoration: none; display: inline-block; margin-top: 10px; }
+    .alert-info { padding: 12px; background: #eff6ff; border-radius: 6px; color: #1e40af; margin: 16px 0; }
+  </style>
+</body>
+</html>

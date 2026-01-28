@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Terminanfragen – Hangar Management System</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="css/auth.css" />
+</head>
+<body>
+  <div class="container">
+    <header class="app-header">
+      <h1>✈️ Terminanfragen</h1>
+      <div id="auth-header" class="auth-header"></div>
+    </header>
+
+    <div class="content">
+      <div id="termine-alert"></div>
+      <p class="hint">Hier sehen Sie Übergabe- und Rückgabeterminanfragen von Flugzeugbesitzern. Bitte bestätigen oder ablehnen.</p>
+
+      <div id="pending-list">
+        <p id="no-pending" class="hint" style="display: none;">Keine ausstehenden Terminanfragen.</p>
+        <table class="data-table" id="pending-table" style="display: none;">
+          <thead>
+            <tr>
+              <th>Datum / Uhrzeit</th>
+              <th>Typ</th>
+              <th>Flugzeugbesitzer</th>
+              <th>Aktion</th>
+            </tr>
+          </thead>
+          <tbody id="pending-tbody"></tbody>
+        </table>
+      </div>
+      <div style="margin-top: 20px;">
+        <a href="index.html" class="btn-primary">Zurück zur Übersicht</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script>
+    (function() {
+      const user = getCurrentUser();
+      const authHeader = document.getElementById('auth-header');
+      if (!user || user.role !== 'HANGAR_PROVIDER') {
+        window.location.href = 'login.html';
+        return;
+      }
+      if (authHeader) {
+        authHeader.innerHTML = '<span class="auth-user">Hallo, ' + (user.name || user.email) + '</span> <a href="#" onclick="logout(); return false;" class="auth-link">Abmelden</a>';
+      }
+      loadPending(user.email);
+    })();
+
+    async function loadPending(email) {
+      const alertEl = document.getElementById('termine-alert');
+      try {
+        const res = await fetch(API_BASE + '/handover-appointments/pending-for-provider?email=' + encodeURIComponent(email));
+        const list = res.ok ? await res.json() : [];
+        const tbody = document.getElementById('pending-tbody');
+        const noEl = document.getElementById('no-pending');
+        const tbl = document.getElementById('pending-table');
+        if (!list || list.length === 0) {
+          noEl.style.display = 'block';
+          tbl.style.display = 'none';
+          return;
+        }
+        noEl.style.display = 'none';
+        tbl.style.display = 'table';
+        tbody.innerHTML = list.map(b => {
+          const d = b.date ? new Date(b.date) : null;
+          const aco = b.aircraftOwner || {};
+          const typ = (b.appointmentType === 'RETURN') ? 'Rückgabe' : 'Übergabe';
+          return `
+            <tr>
+              <td>${d ? d.toLocaleString('de-DE') : '-'}</td>
+              <td>${typ}</td>
+              <td>${aco.name || aco.email || '-'}</td>
+              <td>
+                <button type="button" class="btn-accept" data-id="${b.id}">Annehmen</button>
+                <button type="button" class="btn-reject" data-id="${b.id}">Ablehnen</button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+        tbody.querySelectorAll('.btn-accept').forEach(btn => {
+          btn.addEventListener('click', () => approve(Number(btn.getAttribute('data-id'))));
+        });
+        tbody.querySelectorAll('.btn-reject').forEach(btn => {
+          btn.addEventListener('click', () => reject(Number(btn.getAttribute('data-id'))));
+        });
+      } catch (e) {
+        console.error(e);
+        showAuthAlert(alertEl, 'Fehler beim Laden.', 'error');
+      }
+    }
+
+    async function approve(id) {
+      const user = getCurrentUser();
+      if (!user || !user.email) return;
+      const alertEl = document.getElementById('termine-alert');
+      try {
+        const res = await fetch(API_BASE + '/handover-appointments/confirm/' + id + '?email=' + encodeURIComponent(user.email), { method: 'POST' });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.id) {
+          showAuthAlert(alertEl, 'Termin bestätigt.', 'success');
+          loadPending(user.email);
+        } else {
+          showAuthAlert(alertEl, data.error || 'Bestätigung fehlgeschlagen.', 'error');
+        }
+      } catch (e) {
+        console.error(e);
+        showAuthAlert(alertEl, 'Fehler.', 'error');
+      }
+    }
+
+    async function reject(id) {
+      const user = getCurrentUser();
+      if (!user || !user.email) return;
+      const alertEl = document.getElementById('termine-alert');
+      try {
+        const res = await fetch(API_BASE + '/handover-appointments/reject/' + id + '?email=' + encodeURIComponent(user.email), { method: 'POST' });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.id) {
+          showAuthAlert(alertEl, 'Termin abgelehnt.', 'success');
+          loadPending(user.email);
+        } else {
+          showAuthAlert(alertEl, data.error || 'Ablehnung fehlgeschlagen.', 'error');
+        }
+      } catch (e) {
+        console.error(e);
+        showAuthAlert(alertEl, 'Fehler.', 'error');
+      }
+    }
+  </script>
+  <style>
+    .hint { color: #666; margin: 10px 0; }
+    .btn-primary { display: inline-block; padding: 12px 24px; background: #667eea; color: white; text-decoration: none; border-radius: 6px; }
+    .btn-accept { padding: 8px 14px; background: #22c55e; color: white; border: none; border-radius: 6px; cursor: pointer; margin-right: 8px; }
+    .btn-reject { padding: 8px 14px; background: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer; }
+  </style>
+  <div class="bottom-nav">
+    <a href="index.html" class="bottom-nav__item bottom-nav__item--active">Home</a>
+    <a href="stellplaetze.html" class="bottom-nav__item">Profil</a>
+  </div>
+</body>
+</html>

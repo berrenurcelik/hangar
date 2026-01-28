@@ -38,24 +38,34 @@ public class SRequestManagement {
      * 4.1: add(sr) -> SRequestCatalog
      */
     @Transactional
-    public ServiceRequest saveRequest(Long acId, Long hpId, Long mpId, 
-                                     String services, String location) {
+    public ServiceRequest saveRequest(Long acId, Long hpId, Long mpId,
+                                      String services, String location) {
         // 1: Aircraft aus ACCatalog holen
         Aircraft ac = acCatalog.get(acId);
-        
+
         // 2: HangarProvider aus HPCatalog holen
         HangarProvider hp = hpCatalog.getHP(hpId);
-        
+
         // 3: MaintenanceProvider aus MPCatalog holen
         MaintenanceProvider mp = mpCatalog.getMP(mpId);
-        
+
         // 4: ServiceRequest erstellen
         ServiceRequest sr = new ServiceRequest(services, location, ac, hp, mp);
-        
+
         // 4.1: Zum SRequestCatalog hinzufügen
         sRequestCatalog.add(sr);
-        
+
         return sr;
+    }
+    
+    /**
+     * HA.6: saveRequest – Variante für Hangaranbieter (HP per E-Mail)
+     */
+    @Transactional
+    public ServiceRequest saveRequestByProvider(String email, Long acId, Long mpId,
+                                                String services, String location) {
+        HangarProvider hp = hpCatalog.getHPByEmail(email);
+        return saveRequest(acId, hp.getId(), mpId, services, location);
     }
     
     /**

@@ -23,9 +23,16 @@ public class ParkingService {
     
     @Autowired
     private ParkingRepository parkingRepository;
+
+    @Autowired
+    private LocationCatalog locationCatalog;
     
     public List<Parking> getAllParkings() {
         return parkingRepository.findAll();
+    }
+    
+    public java.util.Optional<Parking> getParkingById(Long id) {
+        return parkingRepository.findById(id);
     }
     
     @Transactional
@@ -55,6 +62,15 @@ public class ParkingService {
             // 2a: Neuen Parking erstellen
             Parking parking = new Parking(status, 0, category);
             parking.setHangarProvider(hangar);
+            // Standortdetails automatisch anhand der Hangar-Stadt zuordnen (z.B. Frankfurt → Frankfurt-Location)
+            try {
+                if (hangar.getCity() != null) {
+                    parking.setLocation(locationCatalog.getDefaultLocationForCity(hangar.getCity()));
+                }
+            } catch (RuntimeException e) {
+                // Wenn keine passende Location gefunden wird, bleibt location null;
+                // in diesem Fall zeigt FB.3 "Details momentan nicht verfügbar" an.
+            }
             
             // 2a.1: Zum ParkingCatalog hinzufügen
             parkingCatalog.add(parking, number);

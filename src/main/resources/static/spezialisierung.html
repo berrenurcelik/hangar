@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spezialisierung – Hangar Management System</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="css/auth.css" />
+</head>
+<body>
+  <div class="container">
+    <header class="app-header">
+      <h1>✈️ Spezialisierung</h1>
+      <div id="auth-header" class="auth-header"></div>
+    </header>
+
+    <div class="content">
+      <div id="spec-alert"></div>
+
+      <!-- Verwaltungsseite, Liste gängiger Flugzeugtypen -->
+      <div id="list-section">
+        <h2>Flugzeugtypen und -größen</h2>
+        <p id="no-types" class="alert-info" style="display: none;">Noch keine Flugzeugtypen vorhanden. Nutzen Sie „Neuen Typ hinzufügen“, um die Liste zu ergänzen.</p>
+        <div id="types-list" style="display: none;">
+          <p class="hint">Wählen Sie die zutreffenden Flugzeugtypen aus (mindestens einen).</p>
+          <form id="selection-form">
+            <div id="checkboxes-container" class="checkboxes-list"></div>
+            <button type="button" id="btn-add-type" class="btn-secondary" style="margin-top: 12px;">Neuen Typ hinzufügen</button>
+            <div style="margin-top: 20px;">
+              <button type="submit" class="btn-primary">Auswahl bestätigen</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Neuen Flugzeugtyp hinzufügen -->
+      <div id="add-type-section" style="display: none;">
+        <h2>Neuen Flugzeugtyp hinzufügen</h2>
+        <p class="hint">Falls ein Typ nicht in der Liste ist, können Sie ihn hier ergänzen. Nur Buchstaben, Ziffern, Leerzeichen, Bindestriche und deutsche Umlaute.</p>
+        <form id="add-type-form">
+          <div class="form-group">
+            <label for="new-name">Name *</label>
+            <input type="text" id="new-name" required placeholder="z.B. Cessna 172" />
+          </div>
+          <div class="form-group">
+            <label for="new-type">Typ (optional)</label>
+            <input type="text" id="new-type" placeholder="z.B. Propeller" />
+          </div>
+          <div class="form-group">
+            <label for="new-size">Größe (optional)</label>
+            <input type="text" id="new-size" placeholder="z.B. Klein" />
+          </div>
+          <button type="submit" class="btn-primary">Hinzufügen</button>
+          <button type="button" id="btn-cancel-add" class="btn-secondary">Abbrechen</button>
+        </form>
+      </div>
+
+      <!-- Bestätigung -->
+      <div id="success-section" style="display: none;">
+        <div class="alert alert-success">
+          <h3>Spezialisierung gespeichert</h3>
+          <p>Die Auswahl wurde im Hangaranbieterprofil gespeichert und ist für Flugzeugbesitzer sichtbar.</p>
+        </div>
+        <button type="button" id="btn-back-list" class="btn-primary">Zurück zur Auswahl</button>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script>
+    let typesList = [];
+    let selectedIds = new Set();
+
+    (function() {
+      const user = getCurrentUser();
+      const authHeader = document.getElementById('auth-header');
+      if (!user || user.role !== 'HANGAR_PROVIDER') {
+        window.location.href = 'login.html';
+        return;
+      }
+      if (authHeader) {
+        authHeader.innerHTML = '<span class="auth-user">Hallo, ' + (user.name || user.email) + '</span> <a href="#" onclick="logout(); return false;" class="auth-link">Abmelden</a>';
+      }
+      loadTypesAndSelection(user.email);
+    })();
+
+    async function loadTypesAndSelection(email) {
+      const alertEl = document.getElementById('spec-alert');
+      try {
+        const [typesRes, currentRes] = await Promise.all([
+          fetch(API_BASE + '/specialization/aircraft-types-list'),
+          fetch(API_BASE + '/specialization/current?email=' + encodeURIComponent(email))
+        ]);
+        typesList = typesRes.ok ? await typesRes.json() : [];
+        const current = currentRes.ok ? await currentRes.json() : {};
+        selectedIds = new Set((current.selectedIds || []).map(Number));
+        renderTypes();
+      } catch (e) {
+        console.error(e);
+        showAuthAlert(alertEl, 'Fehler beim Laden.', 'error');
+      }
+    }
+
+    function renderTypes() {
+      const noEl = document.getElementById('no-types');
+      const listEl = document.getElementById('types-list');
+      const container = document.getElementById('checkboxes-container');
+      if (!typesList || typesList.length === 0) {
+        noEl.style.display = 'block';
+        listEl.style.display = 'none';
+        container.innerHTML = '';
+        return;
+      }
+      noEl.style.display = 'none';
+      listEl.style.display = 'block';
+      container.innerHTML = typesList.map(t => {
+        const id = t.id;
+        const label = (t.name || '-') + (t.type ? ' (' + t.type + ') ' : '') + (t.size ? ' – ' + t.size : '');
+        const checked = selectedIds.has(id) ? ' checked' : '';
+        return `<label class="checkbox-label"><input type="checkbox" class="type-cb" value="${id}"${checked} /> ${label}</label>`;
+      }).join('');
+      container.querySelectorAll('.type-cb').forEach(cb => {
+        cb.addEventListener('change', () => {
+          const id = Number(cb.value);
+          if (cb.checked) selectedIds.add(id); else selectedIds.delete(id);
+        });
+      });
+    }
+
+    function showSection(name) {
+      document.getElementById('list-section').style.display = name === 'list' ? 'block' : 'none';
+      document.getElementById('add-type-section').style.display = name === 'add' ? 'block' : 'none';
+      document.getElementById('success-section').style.display = name === 'success' ? 'block' : 'none';
+    }
+
+    document.getElementById('btn-add-type').addEventListener('click', () => {
+      document.getElementById('new-name').value = '';
+      document.getElementById('new-type').value = '';
+      document.getElementById('new-size').value = '';
+      showSection('add');
+    });
+
+    document.getElementById('btn-cancel-add').addEventListener('click', () => showSection('list'));
+
+    document.getElementById('selection-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const alertEl = document.getElementById('spec-alert');
+      if (selectedIds.size === 0) {
+        showAuthAlert(alertEl, 'Bitte mindestens einen Flugzeugtyp auswählen.', 'error');
+        return;
+      }
+      const user = getCurrentUser();
+      const body = { email: user.email, aircraftTypeIds: Array.from(selectedIds) };
+      try {
+        const res = await fetch(API_BASE + '/specialization/confirm-by-provider', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok) {
+          showSection('success');
+          loadTypesAndSelection(user.email);
+        } else {
+          const msg = data.message || data.error || 'Speichern fehlgeschlagen.';
+          showAuthAlert(alertEl, msg, 'error');
+        }
+      } catch (err) {
+        console.error(err);
+        showAuthAlert(alertEl, 'Netzwerkfehler beim Speichern.', 'error');
+      }
+    });
+
+    document.getElementById('add-type-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const alertEl = document.getElementById('spec-alert');
+      const body = {
+        name: document.getElementById('new-name').value.trim(),
+        type: (document.getElementById('new-type').value || '').trim() || null,
+        size: (document.getElementById('new-size').value || '').trim() || null
+      };
+      try {
+        const res = await fetch(API_BASE + '/specialization/add-new-type', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.id) {
+          showAuthAlert(alertEl, 'Flugzeugtyp wurde hinzugefügt. Sie können ihn nun auswählen.', 'success');
+          showSection('list');
+          typesList = await (await fetch(API_BASE + '/specialization/aircraft-types-list')).json();
+          selectedIds.add(data.id);
+          renderTypes();
+        } else {
+          const msg = (data.message || data.error || 'Hinzufügen fehlgeschlagen.');
+          showAuthAlert(alertEl, msg, 'error');
+        }
+      } catch (err) {
+        console.error(err);
+        showAuthAlert(alertEl, 'Netzwerkfehler.', 'error');
+      }
+    });
+
+    document.getElementById('btn-back-list').addEventListener('click', () => showSection('list'));
+  </script>
+  <style>
+    .hint { color: #666; margin-bottom: 15px; }
+    .alert-info { padding: 12px; background: #eff6ff; border-radius: 6px; color: #1e40af; margin: 16px 0; }
+    .alert-success { padding: 16px; background: #c6f6d5; border-radius: 8px; color: #22543d; margin: 16px 0; }
+    .btn-primary { padding: 12px 24px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; margin-right: 10px; }
+    .btn-secondary { padding: 12px 24px; background: transparent; color: #667eea; border: 1px solid #667eea; border-radius: 6px; cursor: pointer; margin-right: 10px; }
+    .checkboxes-list { display: flex; flex-direction: column; gap: 10px; }
+    .checkbox-label { display: block; cursor: pointer; }
+  </style>
+  <div class="bottom-nav">
+    <a href="index.html" class="bottom-nav__item bottom-nav__item--active">Home</a>
+    <a href="stellplaetze.html" class="bottom-nav__item">Profil</a>
+  </div>
+</body>
+</html>

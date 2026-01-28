@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Registrieren – Hangar Management System</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="css/auth.css" />
+</head>
+<body>
+  <div class="auth-page">
+    <div class="auth-box">
+      <h1>✈️ Hangar Management System</h1>
+      <h2>Registrieren</h2>
+      <div id="register-alert"></div>
+
+      <div class="auth-tabs" role="tablist">
+        <button type="button" id="tab-aco" class="tab active" role="tab" onclick="showRegisterTab('aircraft-owner')">Flugzeugbesitzer</button>
+        <button type="button" id="tab-hp" class="tab" role="tab" onclick="showRegisterTab('hangar-provider')">Hangaranbieter</button>
+      </div>
+
+      <!-- Flugzeugbesitzer -->
+      <div id="form-aircraft-owner" class="auth-form-section active">
+        <h3>Als Flugzeugbesitzer registrieren</h3>
+        <form id="registerAircraftOwnerForm" onsubmit="registerAircraftOwner(event)">
+          <div class="form-group">
+            <label for="acoName">Name *</label>
+            <input type="text" id="acoName" required placeholder="Max Mustermann" />
+          </div>
+          <div class="form-group">
+            <label for="acoEmail">E-Mail *</label>
+            <input type="email" id="acoEmail" required placeholder="max@beispiel.de" />
+          </div>
+          <div class="form-group">
+            <label for="acoPassword">Passwort *</label>
+            <input type="password" id="acoPassword" required minlength="4" />
+          </div>
+          <div class="form-group">
+            <label for="acoContact">Kontakt</label>
+            <input type="text" id="acoContact" placeholder="Tel. oder E-Mail" />
+          </div>
+          <button type="submit">Registrieren (Flugzeugbesitzer)</button>
+        </form>
+      </div>
+
+      <!-- Hangaranbieter -->
+      <div id="form-hangar-provider" class="auth-form-section">
+        <h3>Als Hangaranbieter registrieren</h3>
+        <form id="registerHangarProviderForm" onsubmit="registerHangarProvider(event)">
+          <div class="form-group">
+            <label for="hpName">Name / Firma *</label>
+            <input type="text" id="hpName" required placeholder="Sky Hangar GmbH" />
+          </div>
+          <div class="form-group">
+            <label for="hpEmail">E-Mail *</label>
+            <input type="email" id="hpEmail" required placeholder="info@sky-hangar.de" />
+          </div>
+          <div class="form-group">
+            <label for="hpPassword">Passwort *</label>
+            <input type="password" id="hpPassword" required minlength="4" />
+          </div>
+          <div class="form-group">
+            <label for="hpContact">Kontakt</label>
+            <input type="text" id="hpContact" placeholder="Tel. oder E-Mail" />
+          </div>
+          <div class="form-group">
+            <label for="hpServiceHours">Servicezeiten *</label>
+            <input type="text" id="hpServiceHours" placeholder="z.B. Mo–Fr 8:00–18:00" />
+          </div>
+          <div class="form-group">
+            <label for="hpCity">Standort (Stadt) *</label>
+            <select id="hpCity" required>
+              <option value="">-- Bitte wählen --</option>
+              <option value="Berlin">Berlin</option>
+              <option value="Hamburg">Hamburg</option>
+              <option value="Frankfurt">Frankfurt</option>
+              <option value="Köln">Köln</option>
+              <option value="München">München</option>
+              <option value="Stuttgart">Stuttgart</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="hpCosts">Kosten</label>
+            <input type="text" id="hpCosts" placeholder="z.B. ab 50 €/Tag oder Pauschalpreis" />
+          </div>
+          <div class="form-group">
+            <label for="hpStorageConditions">Einstellbedingungen (kommagetrennt)</label>
+            <input type="text" id="hpStorageConditions" placeholder="z.B. Klimatisiert, 24/7 Sicherheit" />
+          </div>
+          <button type="submit">Registrieren (Hangaranbieter)</button>
+        </form>
+      </div>
+
+      <p class="auth-links">
+        Bereits registriert?
+        <a href="login.html">Anmelden</a>
+      </p>
+      <p class="auth-links">
+        <a href="index.html">Zurück zur Startseite</a>
+      </p>
+    </div>
+  </div>
+  <script src="js/auth.js"></script>
+  <script>
+    function showRegisterTab(tab) {
+      document.querySelectorAll('.auth-tabs .tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.auth-form-section').forEach(s => s.classList.remove('active'));
+      if (tab === 'aircraft-owner') {
+        document.getElementById('tab-aco').classList.add('active');
+        document.getElementById('form-aircraft-owner').classList.add('active');
+      } else {
+        document.getElementById('tab-hp').classList.add('active');
+        document.getElementById('form-hangar-provider').classList.add('active');
+      }
+    }
+
+    async function registerAircraftOwner(event) {
+      event.preventDefault();
+      const alertEl = document.getElementById('register-alert');
+      const body = {
+        name: document.getElementById('acoName').value.trim(),
+        email: document.getElementById('acoEmail').value.trim(),
+        password: document.getElementById('acoPassword').value,
+        contact: document.getElementById('acoContact').value.trim() || null
+      };
+      try {
+        const res = await fetch(API_BASE + '/auth/register/aircraft-owner', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (res.ok) {
+          showAuthAlert(alertEl, 'Registrierung erfolgreich. Sie können sich jetzt anmelden.', 'success');
+          setTimeout(() => { window.location.href = 'login.html'; }, 1500);
+          return;
+        }
+        showAuthAlert(alertEl, data.message || 'Registrierung fehlgeschlagen.', 'error');
+      } catch (err) {
+        showAuthAlert(alertEl, 'Netzwerkfehler. Bitte versuchen Sie es später.', 'error');
+      }
+    }
+
+    async function registerHangarProvider(event) {
+      event.preventDefault();
+      const alertEl = document.getElementById('register-alert');
+      const raw = document.getElementById('hpStorageConditions').value.trim();
+      const storageConditions = raw ? raw.split(/[\s,;]+/).map(s => s.trim()).filter(Boolean) : [];
+      const body = {
+        name: document.getElementById('hpName').value.trim(),
+        email: document.getElementById('hpEmail').value.trim(),
+        password: document.getElementById('hpPassword').value,
+        contact: document.getElementById('hpContact').value.trim() || null,
+        serviceHours: document.getElementById('hpServiceHours').value.trim() || null,
+        city: document.getElementById('hpCity').value || null,
+        costs: document.getElementById('hpCosts').value.trim() || null,
+        storageConditions
+      };
+      try {
+        const res = await fetch(API_BASE + '/auth/register/hangar-provider', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (res.ok) {
+          showAuthAlert(alertEl, 'Registrierung erfolgreich. Sie können sich jetzt anmelden.', 'success');
+          setTimeout(() => { window.location.href = 'login.html'; }, 1500);
+          return;
+        }
+        const msg = (data && data.message) ? data.message : 'Registrierung fehlgeschlagen.';
+        if (msg.indexOf('Benutzer existiert bereits') !== -1) {
+          showAuthAlert(alertEl, 'Benutzer existiert bereits. Bitte melden Sie sich stattdessen an: <a href="login.html">Jetzt anmelden</a>', 'error');
+        } else {
+          showAuthAlert(alertEl, msg, 'error');
+        }
+      } catch (err) {
+        showAuthAlert(alertEl, 'Netzwerkfehler. Bitte versuchen Sie es später.', 'error');
+      }
+    }
+  </script>

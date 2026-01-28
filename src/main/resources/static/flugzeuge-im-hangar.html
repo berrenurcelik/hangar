@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Flugzeuge im Hangar – Hangar Management System</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="css/auth.css" />
+</head>
+<body>
+  <div class="container">
+    <header class="app-header">
+      <h1>✈️ Flugzeuge im Hangar</h1>
+      <div id="auth-header" class="auth-header"></div>
+    </header>
+
+    <div class="content">
+      <div id="ha5-alert"></div>
+
+      <!-- Verwaltungsseite, Liste der eingelagerten Flugzeuge -->
+      <div id="list-section">
+        <h2>Eingelagerte Flugzeuge</h2>
+        <p id="no-aircraft" class="alert-info" style="display: none;">Keine Flugzeuge im Hangar eingelagert bzw. Ihrem Profil zugeordnet.</p>
+        <div id="aircraft-list" style="display: none;">
+          <p class="hint">Wählen Sie ein Flugzeug aus, um Wartungs- und Fahrbereitschaftsdaten anzuzeigen und zu aktualisieren.</p>
+          <ul id="aircraft-list-ul" class="aircraft-list-ul"></ul>
+        </div>
+      </div>
+
+      <!-- Ausgewähltes Flugzeug, aktuelle Daten, Formular -->
+      <div id="detail-section" style="display: none;">
+        <h2>Wartungs- und Fahrbereitschaftsdaten</h2>
+        <p id="selected-aircraft-label" class="selected-label"></p>
+        <!-- aktuelle Daten -->
+        <div id="current-status" class="current-status-box">
+          <p><strong>Aktueller Wartungsstatus:</strong> <span id="disp-maintenance">–</span></p>
+          <p><strong>Aktuelle Fahrbereitschaft:</strong> <span id="disp-flight-readiness">–</span></p>
+        </div>
+        <!-- Formular -->
+        <form id="status-form">
+          <input type="hidden" id="form-aircraft-id" />
+          <div class="form-group">
+            <label for="form-maintenance">Wartungsstatus *</label>
+            <select id="form-maintenance" required>
+              <option value="">– Bitte wählen –</option>
+              <option value="in Wartung">in Wartung</option>
+              <option value="flugbereit">flugbereit</option>
+              <option value="nicht flugbereit">nicht flugbereit</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="form-flight-readiness">Fahrbereitschaft *</label>
+            <select id="form-flight-readiness" required>
+              <option value="">– Bitte wählen –</option>
+              <option value="flugbereit">flugbereit</option>
+              <option value="nicht flugbereit">nicht flugbereit</option>
+            </select>
+          </div>
+          <button type="submit" class="btn-primary">Eingabe bestätigen</button>
+          <button type="button" id="btn-back-list" class="btn-secondary">Zurück zur Liste</button>
+        </form>
+      </div>
+
+      <!-- Bestätigung -->
+      <div id="success-section" style="display: none;">
+        <div class="alert alert-success">
+          <h3>Aktualisierung gespeichert</h3>
+          <p>Die Wartungs- und Fahrbereitschaftsdaten wurden im Hangaranbieterprofil gespeichert. Flugzeugbesitzer können die neuen Informationen einsehen.</p>
+        </div>
+        <button type="button" id="btn-back-after-success" class="btn-primary">Zurück zur Liste</button>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script>
+    let aircraftList = [];
+
+    (function() {
+      const user = getCurrentUser();
+      const authHeader = document.getElementById('auth-header');
+      if (!user || user.role !== 'HANGAR_PROVIDER') {
+        window.location.href = 'login.html';
+        return;
+      }
+      if (authHeader) {
+        authHeader.innerHTML = '<span class="auth-user">Hallo, ' + (user.name || user.email) + '</span> <a href="#" onclick="logout(); return false;" class="auth-link">Abmelden</a>';
+      }
+      loadAircraftInHangar(user.email);
+    })();
+
+    async function loadAircraftInHangar(email) {
+      const alertEl = document.getElementById('ha5-alert');
+      try {
+        const res = await fetch(API_BASE + '/status/aircraft-in-hangar?email=' + encodeURIComponent(email));
+        if (res.status === 404) {
+          document.getElementById('no-aircraft').style.display = 'block';
+          document.getElementById('aircraft-list').style.display = 'none';
+          aircraftList = [];
+          return;
+        }
+        if (!res.ok) throw new Error('Laden fehlgeschlagen');
+        aircraftList = await res.json();
+        renderAircraftList();
+      } catch (e) {
+        console.error(e);
+        showAuthAlert(alertEl, 'Fehler beim Laden der eingelagerten Flugzeuge.', 'error');
+        document.getElementById('no-aircraft').style.display = 'block';
+        document.getElementById('aircraft-list').style.display = 'none';
+        aircraftList = [];
+      }
+    }
+
+    function renderAircraftList() {
+      const noEl = document.getElementById('no-aircraft');
+      const listEl = document.getElementById('aircraft-list');
+      const ul = document.getElementById('aircraft-list-ul');
+      if (!aircraftList || aircraftList.length === 0) {
+        noEl.style.display = 'block';
+        listEl.style.display = 'none';
+        ul.innerHTML = '';
+        return;
+      }
+      noEl.style.display = 'none';
+      listEl.style.display = 'block';
+      ul.innerHTML = aircraftList.map(ac => {
+        const label = (ac.registrationMark || 'ID ' + ac.id) + (ac.dimensions ? ' – ' + ac.dimensions : '');
+        return '<li><button type="button" class="btn-aircraft" data-id="' + ac.id + '">' + label + '</button></li>';
+      }).join('');
+      ul.querySelectorAll('.btn-aircraft').forEach(btn => {
+        btn.addEventListener('click', () => selectAircraft(Number(btn.getAttribute('data-id'))));
+      });
+    }
+
+    async function selectAircraft(aircraftId) {
+      const alertEl = document.getElementById('ha5-alert');
+      const ac = aircraftList.find(a => a.id === aircraftId);
+      if (!ac) return;
+      document.getElementById('list-section').style.display = 'none';
+      document.getElementById('detail-section').style.display = 'block';
+      document.getElementById('success-section').style.display = 'none';
+      document.getElementById('selected-aircraft-label').textContent = 'Flugzeug: ' + (ac.registrationMark || 'ID ' + ac.id);
+      document.getElementById('form-aircraft-id').value = aircraftId;
+
+      try {
+        const res = await fetch(API_BASE + '/status/current?aircraftId=' + aircraftId);
+        const data = res.ok ? await res.json() : {};
+        document.getElementById('disp-maintenance').textContent = data.maintenance || '–';
+        document.getElementById('disp-flight-readiness').textContent = data.flightReadiness || '–';
+        document.getElementById('form-maintenance').value = data.maintenance || '';
+        document.getElementById('form-flight-readiness').value = data.flightReadiness || '';
+      } catch (e) {
+        document.getElementById('disp-maintenance').textContent = '–';
+        document.getElementById('disp-flight-readiness').textContent = '–';
+        document.getElementById('form-maintenance').value = '';
+        document.getElementById('form-flight-readiness').value = '';
+      }
+      alertEl.innerHTML = '';
+    }
+
+    function showSection(name) {
+      document.getElementById('list-section').style.display = name === 'list' ? 'block' : 'none';
+      document.getElementById('detail-section').style.display = name === 'detail' ? 'block' : 'none';
+      document.getElementById('success-section').style.display = name === 'success' ? 'block' : 'none';
+    }
+
+    document.getElementById('btn-back-list').addEventListener('click', () => {
+      showSection('list');
+      document.getElementById('detail-section').style.display = 'none';
+    });
+
+    document.getElementById('btn-back-after-success').addEventListener('click', () => {
+      showSection('list');
+      document.getElementById('detail-section').style.display = 'none';
+      document.getElementById('success-section').style.display = 'none';
+      const user = getCurrentUser();
+      if (user) loadAircraftInHangar(user.email);
+    });
+
+    document.getElementById('status-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const alertEl = document.getElementById('ha5-alert');
+      const user = getCurrentUser();
+      if (!user) return;
+      const aircraftId = document.getElementById('form-aircraft-id').value;
+      const maintenance = document.getElementById('form-maintenance').value.trim();
+      const flightReadiness = document.getElementById('form-flight-readiness').value.trim();
+
+      if (!maintenance || !flightReadiness) {
+        showAuthAlert(alertEl, 'Pflichtfelder fehlen oder ungültige Werte. Bitte Wartungsstatus und Fahrbereitschaft wählen.', 'error');
+        return;
+      }
+
+      try {
+        const res = await fetch(API_BASE + '/status/save-input-by-provider', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: user.email,
+            aircraftId: Number(aircraftId),
+            maintenance: maintenance,
+            flightReadiness: flightReadiness
+          })
+        });
+        const data = await res.json().catch(() => ({}));
+
+        if (res.ok) {
+          showSection('success');
+          document.getElementById('list-section').style.display = 'none';
+          document.getElementById('detail-section').style.display = 'none';
+        } else {
+          const msg = data.message || 'Pflichtfelder fehlen oder ungültige Werte. Bitte fehlende oder fehlerhafte Daten korrigieren.';
+          showAuthAlert(alertEl, msg, 'error');
+          if (data.missingFields && data.missingFields.length) {
+            alertEl.innerHTML += '<br/><span class="hint">Fehlende/fehlerhafte Felder: ' + data.missingFields.join(', ') + '</span>';
+          }
+        }
+      } catch (err) {
+        console.error(err);
+        showAuthAlert(alertEl, 'Netzwerkfehler beim Speichern.', 'error');
+      }
+    });
+  </script>
+  <style>
+    .hint { color: #666; margin-bottom: 15px; }
+    .alert-info { padding: 12px; background: #eff6ff; border-radius: 6px; color: #1e40af; margin: 16px 0; }
+    .alert-success { padding: 16px; background: #c6f6d5; border-radius: 8px; color: #22543d; margin: 16px 0; }
+    .btn-primary { padding: 12px 24px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; margin-right: 10px; }
+    .btn-secondary { padding: 12px 24px; background: transparent; color: #667eea; border: 1px solid #667eea; border-radius: 6px; cursor: pointer; margin-right: 10px; }
+    .aircraft-list-ul { list-style: none; padding: 0; }
+    .aircraft-list-ul li { margin: 8px 0; }
+    .btn-aircraft { padding: 10px 16px; background: #e0e7ff; color: #3730a3; border: 1px solid #a5b4fc; border-radius: 6px; cursor: pointer; width: 100%; text-align: left; }
+    .btn-aircraft:hover { background: #c7d2fe; }
+    .selected-label { font-weight: 600; margin-bottom: 12px; }
+    .current-status-box { padding: 12px; background: #f3f4f6; border-radius: 6px; margin-bottom: 20px; }
+  </style>
+  <div class="bottom-nav">
+    <a href="index.html" class="bottom-nav__item bottom-nav__item--active">Home</a>
+    <a href="stellplaetze.html" class="bottom-nav__item">Profil</a>
+  </div>
+</body>
+</html>

@@ -1,5 +1,6 @@
 package de.thm.mni.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 
 @Entity
@@ -61,6 +62,7 @@ public class Benutzer {
         this.email = email;
     }
     
+    @JsonIgnore
     public String getPassword() {
         return password;
     }

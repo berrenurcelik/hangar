@@ -6,4 +6,11 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface LocationRepository extends JpaRepository<Location, Long> {
+
+    /**
+     * Liefert eine Beispiel-Location für eine Stadt (z.B. "Frankfurt").
+     * Wird verwendet, um neu angelegte Stellplätze automatisch mit
+     * konsistenten Standortdetails zu verknüpfen.
+     */
+    java.util.Optional<Location> findFirstByLocationContainingIgnoreCase(String city);
 }

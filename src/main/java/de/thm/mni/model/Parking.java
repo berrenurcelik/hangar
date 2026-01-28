@@ -25,6 +25,11 @@ public class Parking {
     @JsonIgnoreProperties({"parkings", "selectedAircrafts", "services", "repairRequests"})
     private HangarProvider hangarProvider;
     
+    @ManyToOne
+    @JoinColumn(name = "location_id")
+    @JsonIgnoreProperties({"parkings"})
+    private Location location; // UC FB.3: Standortdetails
+    
     @OneToMany(mappedBy = "parking", cascade = CascadeType.ALL)
     private Set<AircraftAppointment> aircraftAppointments = new HashSet<>();
     
@@ -85,6 +90,14 @@ public class Parking {
     
     public void setHangarProvider(HangarProvider hangarProvider) {
         this.hangarProvider = hangarProvider;
+    }
+    
+    public Location getLocation() {
+        return location;
+    }
+    
+    public void setLocation(Location location) {
+        this.location = location;
     }
     
     public Set<AircraftAppointment> getAircraftAppointments() {

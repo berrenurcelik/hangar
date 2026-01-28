@@ -32,4 +32,11 @@ public class PartsCatalog {
         return repository.findById(sparePartID)
             .orElseThrow(() -> new RuntimeException("SparePart nicht gefunden mit ID: " + sparePartID));
     }
+
+    /**
+     * StR.EA.3 Schritt 6: Artikelbestand nach Reservierung anpassen
+     */
+    public void update(SparePart sp) {
+        repository.save(sp);
+    }
 }

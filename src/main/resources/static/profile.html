@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mein Profil – Hangar Management System</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="css/auth.css" />
+</head>
+<body>
+  <div class="container">
+    <header class="app-header">
+      <h1>✈️ Mein Profil</h1>
+      <div id="auth-header" class="auth-header"></div>
+    </header>
+
+    <div class="content">
+      <div id="profile-alert"></div>
+      
+      <div id="profile-content" style="display: none;">
+        <!-- Profil Header Card -->
+        <div class="profile-header-card">
+          <div class="profile-avatar">
+            <span class="avatar-icon">✈️</span>
+          </div>
+          <div class="profile-header-info">
+            <h2 id="profileDisplayName" class="profile-name"></h2>
+            <p class="profile-email" id="profileDisplayEmail"></p>
+            <span class="profile-badge">Flugzeugbesitzer</span>
+          </div>
+        </div>
+
+        <!-- Persönliche Informationen Card -->
+        <div class="profile-card">
+          <h3 class="card-title">Persönliche Informationen</h3>
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">Name</span>
+              <span class="info-value" id="profileNameDisplay"></span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">E-Mail</span>
+              <span class="info-value" id="profileEmailDisplay"></span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Kontakt</span>
+              <span class="info-value" id="profileContactDisplay"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Meine Flugzeuge Card -->
+        <div class="profile-card">
+          <h3 class="card-title">Meine Flugzeuge</h3>
+          <div class="table-container">
+            <table class="profile-table">
+              <thead>
+                <tr>
+                  <th>Registrierung</th>
+                  <th>Größe</th>
+                  <th>Abmessungen</th>
+                  <th>Wartungsstatus</th>
+                  <th>Flugbereitschaft</th>
+                </tr>
+              </thead>
+              <tbody id="aircraftsTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Quick Actions Grid -->
+        <div class="profile-card">
+          <h3 class="card-title">Schnellzugriff</h3>
+          <div class="quick-actions-grid">
+            <a href="meine-flugzeuge.html" class="quick-action-card">
+              <span class="action-icon">✈️</span>
+              <span class="action-label">Meine Flugzeuge</span>
+            </a>
+            <a href="parking-search.html" class="quick-action-card">
+              <span class="action-icon">📍</span>
+              <span class="action-label">Stellplatz suchen</span>
+            </a>
+            <a href="meine-angebote.html" class="quick-action-card">
+              <span class="action-icon">💼</span>
+              <span class="action-label">Meine Angebote</span>
+            </a>
+            <a href="ersatzteile.html" class="quick-action-card">
+              <span class="action-icon">🔧</span>
+              <span class="action-label">Ersatzteile</span>
+            </a>
+            <a href="uebergabe-termine.html" class="quick-action-card">
+              <span class="action-icon">📅</span>
+              <span class="action-label">Termine</span>
+            </a>
+            <a href="zusatzservices.html" class="quick-action-card">
+              <span class="action-icon">⚙️</span>
+              <span class="action-label">Zusatzservices</span>
+            </a>
+            <a href="meine-buchungen.html" class="quick-action-card">
+              <span class="action-icon">📋</span>
+              <span class="action-label">Buchungen</span>
+            </a>
+            <a href="index.html" class="quick-action-card">
+              <span class="action-icon">🏠</span>
+              <span class="action-label">Übersicht</span>
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div id="not-logged-in" style="text-align: center; padding: 40px;">
+        <h2>Bitte anmelden</h2>
+        <p>Sie müssen angemeldet sein, um Ihr Profil zu sehen.</p>
+        <a href="login.html" class="btn-primary">Anmelden</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script>
+    (function() {
+      const user = getCurrentUser();
+      const authHeader = document.getElementById('auth-header');
+      const profileContent = document.getElementById('profile-content');
+      const notLoggedIn = document.getElementById('not-logged-in');
+
+      if (!user || user.role !== 'AIRCRAFT_OWNER') {
+        profileContent.style.display = 'none';
+        notLoggedIn.style.display = 'block';
+        if (authHeader) {
+          authHeader.innerHTML = '<a href="login.html" class="auth-link">Anmelden</a>';
+        }
+        return;
+      }
+
+      profileContent.style.display = 'block';
+      notLoggedIn.style.display = 'none';
+
+      if (authHeader) {
+        authHeader.innerHTML = '<span class="auth-user">Hallo, ' + (user.name || user.email) + '</span> <a href="#" onclick="logout(); return false;" class="auth-link">Abmelden</a>';
+      }
+
+      // Profil laden
+      fetch(API_BASE + '/aircraft-owner/profile/by-email?email=' + encodeURIComponent(user.email))
+        .then(res => res.json())
+        .then(profile => {
+          // Header Info
+          document.getElementById('profileDisplayName').textContent = profile.name || user.email;
+          document.getElementById('profileDisplayEmail').textContent = profile.email || '';
+          
+          // Persönliche Informationen
+          document.getElementById('profileNameDisplay').textContent = profile.name || '-';
+          document.getElementById('profileEmailDisplay').textContent = profile.email || '-';
+          document.getElementById('profileContactDisplay').textContent = profile.contact || '-';
+          
+          // Flugzeuge laden
+          if (profile.aircrafts && profile.aircrafts.length > 0) {
+            const tbody = document.getElementById('aircraftsTableBody');
+            tbody.innerHTML = profile.aircrafts.map(ac => `
+              <tr>
+                <td>${ac.registrationMark || '-'}</td>
+                <td>${ac.size || '-'}</td>
+                <td>${ac.dimensions || '-'}</td>
+                <td><span class="status-badge">${ac.maintenanceStatus || '-'}</span></td>
+                <td><span class="status-badge">${ac.flightReadiness || '-'}</span></td>
+              </tr>
+            `).join('');
+          } else {
+            document.getElementById('aircraftsTableBody').innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px; color: #666;">Keine Flugzeuge registriert</td></tr>';
+          }
+        })
+        .catch(err => {
+          console.error('Fehler beim Laden des Profils:', err);
+          showAuthAlert(document.getElementById('profile-alert'), 'Fehler beim Laden des Profils', 'error');
+        });
+    })();
+  </script>
+  <style>
+    .profile-header-card {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 16px;
+      padding: 32px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3);
+    }
+
+    .profile-avatar {
+      width: 80px;
+      height: 80px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 36px;
+      flex-shrink: 0;
+    }
+
+    .profile-header-info {
+      flex: 1;
+      color: white;
+    }
+
+    .profile-name {
+      font-size: 28px;
+      font-weight: 700;
+      margin: 0 0 8px 0;
+      color: white;
+    }
+
+    .profile-email {
+      font-size: 16px;
+      opacity: 0.9;
+      margin: 0 0 12px 0;
+    }
+
+    .profile-badge {
+      display: inline-block;
+      padding: 6px 16px;
+      background: rgba(255, 255, 255, 0.25);
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .profile-card {
+      background: white;
+      border-radius: 12px;
+      padding: 28px;
+      margin-bottom: 24px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    .card-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: #1a202c;
+      margin: 0 0 20px 0;
+      padding-bottom: 12px;
+      border-bottom: 2px solid #e2e8f0;
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+    }
+
+    .info-item {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .info-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #718096;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .info-value {
+      font-size: 16px;
+      color: #2d3748;
+      font-weight: 500;
+    }
+
+    .table-container {
+      overflow-x: auto;
+    }
+
+    .profile-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .profile-table thead {
+      background: #f7fafc;
+    }
+
+    .profile-table th {
+      padding: 12px 16px;
+      text-align: left;
+      font-weight: 600;
+      color: #4a5568;
+      font-size: 14px;
+      border-bottom: 2px solid #e2e8f0;
+    }
+
+    .profile-table td {
+      padding: 14px 16px;
+      border-bottom: 1px solid #e2e8f0;
+      color: #2d3748;
+    }
+
+    .profile-table tbody tr:hover {
+      background: #f7fafc;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      background: #e6fffa;
+      color: #047857;
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .quick-actions-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 16px;
+    }
+
+    .quick-action-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+      background: #f7fafc;
+      border-radius: 12px;
+      text-decoration: none;
+      transition: all 0.3s ease;
+      border: 2px solid transparent;
+    }
+
+    .quick-action-card:hover {
+      background: #edf2f7;
+      border-color: #667eea;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+    }
+
+    .action-icon {
+      font-size: 32px;
+      margin-bottom: 8px;
+    }
+
+    .action-label {
+      font-size: 14px;
+      font-weight: 600;
+      color: #2d3748;
+      text-align: center;
+    }
+  </style>
+</body>
+</html>

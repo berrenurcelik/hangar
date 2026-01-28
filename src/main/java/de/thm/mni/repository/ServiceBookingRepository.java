@@ -9,4 +9,6 @@ import org.springframework.stereotype.Repository;
  */
 @Repository
 public interface ServiceBookingRepository extends JpaRepository<ServiceBooking, Long> {
+
+    java.util.List<ServiceBooking> findByAircraftOwner_Id(Long aircraftOwnerId);
 }

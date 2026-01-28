@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Meine Angebote – Hangar Management System</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="css/auth.css" />
+</head>
+<body>
+  <div class="container">
+    <header class="app-header">
+      <h1>✈️ Meine Angebote</h1>
+      <div id="auth-header" class="auth-header"></div>
+    </header>
+
+    <div class="content">
+      <div id="offers-alert"></div>
+      
+      <!-- Bereich „Meine Angebote“, Liste aller eingegangenen Angebote -->
+      <div id="offers-list-section" style="display: none;">
+        <h2>Eingegangene Angebote</h2>
+        <p id="offers-empty" class="hint" style="display: none;">Keine Angebote vorhanden. Nach einer Serviceanfrage (FB.4) können hier Angebote des Hangaranbieters erscheinen.</p>
+        <table class="data-table" id="offers-table">
+          <thead>
+            <tr>
+              <th>Angebot</th>
+              <th>Hangaranbieter</th>
+              <th>Preis</th>
+              <th>Status</th>
+              <th>Aktion</th>
+            </tr>
+          </thead>
+          <tbody id="offers-table-body"></tbody>
+        </table>
+        <div class="nav-actions">
+          <a href="profile.html" class="btn-primary">Zurück zum Profil</a>
+        </div>
+      </div>
+
+      <!-- Angebotsdetails, Annehmen/Ablehnen, Bestätigung -->
+      <div id="offer-detail-section" style="display: none;">
+        <h2>Angebotsdetails</h2>
+        <div class="detail-section">
+          <p><strong>Dauer:</strong> <span id="detail-duration"></span></p>
+          <p><strong>Leistungen:</strong> <span id="detail-services"></span></p>
+          <p><strong>Kosten:</strong> <span id="detail-price"></span> €</p>
+          <p><strong>Hangaranbieter:</strong> <span id="detail-hangar-provider"></span></p>
+          <p><strong>Status:</strong> <span id="detail-status"></span></p>
+        </div>
+        <div id="offer-decision-buttons" class="button-group">
+          <button type="button" class="btn-accept" id="btn-accept">Annehmen</button>
+          <button type="button" class="btn-reject" id="btn-reject">Ablehnen</button>
+        </div>
+        <div id="offer-decision-done" style="display: none;">
+          <p class="confirmation-msg" id="confirmation-msg"></p>
+          <a href="meine-angebote.html" class="btn-primary">Zurück zu Meine Angebote</a>
+        </div>
+        <div class="nav-actions">
+          <a href="#" id="back-to-list" class="btn-primary">Zurück zur Liste</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom-nav">
+    <a href="index.html" class="bottom-nav__item">Home</a>
+    <a href="profile.html" class="bottom-nav__item">Profil</a>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script>
+    let currentOffers = [];
+    let currentOfferId = null;
+
+    (function() {
+      const user = getCurrentUser();
+      const authHeader = document.getElementById('auth-header');
+
+      if (!user || user.role !== 'AIRCRAFT_OWNER') {
+        window.location.href = 'login.html';
+        return;
+      }
+
+      if (authHeader) {
+        authHeader.innerHTML = '<span class="auth-user">Hallo, ' + (user.name || user.email) + '</span> <a href="profile.html" class="auth-link">Profil</a> <a href="#" onclick="logout(); return false;" class="auth-link">Abmelden</a>';
+      }
+
+      loadOffers(user.email);
+    })();
+
+    async function loadOffers(email) {
+      const alertEl = document.getElementById('offers-alert');
+      try {
+        const res = await fetch(API_BASE + '/offer/by-owner?email=' + encodeURIComponent(email));
+        if (!res.ok) {
+          document.getElementById('offers-list-section').style.display = 'block';
+          document.getElementById('offers-empty').style.display = 'block';
+          return;
+        }
+        const offers = await res.json();
+        currentOffers = offers || [];
+        renderOffersList(currentOffers);
+        document.getElementById('offers-list-section').style.display = 'block';
+      } catch (err) {
+        console.error('Fehler beim Laden der Angebote:', err);
+        showAuthAlert(alertEl, 'Fehler beim Laden der Angebote.', 'error');
+        document.getElementById('offers-list-section').style.display = 'block';
+      }
+    }
+
+    function renderOffersList(offers) {
+      const tbody = document.getElementById('offers-table-body');
+      const emptyEl = document.getElementById('offers-empty');
+      if (!offers || offers.length === 0) {
+        tbody.innerHTML = '';
+        emptyEl.style.display = 'block';
+        return;
+      }
+      emptyEl.style.display = 'none';
+      tbody.innerHTML = offers.map(o => {
+        const sr = o.serviceRequest || {};
+        const hp = sr.hangarProvider || {};
+        const statusText = o.status === 'ACCEPTED' ? 'Angenommen' : o.status === 'REJECTED' ? 'Abgelehnt' : 'Offen';
+        return `
+          <tr>
+            <td>Angebot #${o.id}</td>
+            <td>${hp.name || '-'}</td>
+            <td>${o.price != null ? o.price + ' €' : '-'}</td>
+            <td>${statusText}</td>
+            <td>${o.status === 'PENDING' ? '<a href="#" class="link-detail" data-id="' + o.id + '">Details / Entscheiden</a>' : '<a href="#" class="link-detail" data-id="' + o.id + '">Details anzeigen</a>'}</td>
+          </tr>
+        `;
+      }).join('');
+      tbody.querySelectorAll('.link-detail').forEach(a => {
+        a.addEventListener('click', function(e) { e.preventDefault(); showOfferDetail(Number(this.getAttribute('data-id'))); });
+      });
+    }
+
+    async function showOfferDetail(offerId) {
+      currentOfferId = offerId;
+      document.getElementById('offers-list-section').style.display = 'none';
+      document.getElementById('offer-detail-section').style.display = 'block';
+      document.getElementById('offer-decision-buttons').style.display = '';
+      document.getElementById('offer-decision-done').style.display = 'none';
+
+      try {
+        const res = await fetch(API_BASE + '/offer/' + offerId);
+        if (!res.ok) throw new Error('Angebot nicht gefunden');
+        const offer = await res.json();
+        const sr = offer.serviceRequest || {};
+        const hp = sr.hangarProvider || {};
+        document.getElementById('detail-duration').textContent = sr.duration || '-';
+        document.getElementById('detail-services').textContent = sr.services || '-';
+        document.getElementById('detail-price').textContent = offer.price != null ? offer.price : '-';
+        document.getElementById('detail-hangar-provider').textContent = hp.name || '-';
+        document.getElementById('detail-status').textContent = offer.status === 'ACCEPTED' ? 'Angenommen' : offer.status === 'REJECTED' ? 'Abgelehnt' : 'Offen';
+        if (offer.status !== 'PENDING') {
+          document.getElementById('offer-decision-buttons').style.display = 'none';
+          document.getElementById('confirmation-msg').textContent = 'Sie haben dieses Angebot bereits ' + (offer.status === 'ACCEPTED' ? 'angenommen.' : 'abgelehnt.');
+          document.getElementById('offer-decision-done').style.display = 'block';
+        }
+      } catch (err) {
+        console.error(err);
+        showAuthAlert(document.getElementById('offers-alert'), 'Angebot konnte nicht geladen werden.', 'error');
+      }
+    }
+
+    async function saveDecision(status) {
+      if (!currentOfferId) return;
+      const alertEl = document.getElementById('offers-alert');
+      try {
+        const res = await fetch(API_BASE + '/offer/save-decision', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ offerID: currentOfferId, status: status })
+        });
+        if (!res.ok) throw new Error('Speichern fehlgeschlagen');
+        const offer = await res.json();
+        document.getElementById('offer-decision-buttons').style.display = 'none';
+        document.getElementById('detail-status').textContent = status === 'ACCEPTED' ? 'Angenommen' : 'Abgelehnt';
+        document.getElementById('confirmation-msg').textContent = status === 'ACCEPTED'
+          ? 'Angebot angenommen. Sie können nun z. B. die Terminvereinbarung fortführen.'
+          : 'Angebot abgelehnt.';
+        document.getElementById('offer-decision-done').style.display = 'block';
+      } catch (err) {
+        console.error(err);
+        showAuthAlert(alertEl, 'Entscheidung konnte nicht gespeichert werden.', 'error');
+      }
+    }
+
+    document.getElementById('back-to-list').addEventListener('click', function(e) {
+      e.preventDefault();
+      document.getElementById('offer-detail-section').style.display = 'none';
+      document.getElementById('offers-list-section').style.display = 'block';
+    });
+    document.getElementById('btn-accept').addEventListener('click', function() { saveDecision('ACCEPTED'); });
+    document.getElementById('btn-reject').addEventListener('click', function() { saveDecision('REJECTED'); });
+  </script>
+  <style>
+    .detail-section { margin: 20px 0; padding: 20px; background: #f9f9f9; border-radius: 8px; }
+    .detail-section p { margin: 10px 0; }
+    .button-group { display: flex; gap: 12px; margin: 20px 0; }
+    .btn-accept { padding: 12px 24px; background: #22c55e; color: white; border: none; border-radius: 6px; cursor: pointer; }
+    .btn-reject { padding: 12px 24px; background: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer; }
+    .btn-primary { display: inline-block; padding: 12px 24px; background: #667eea; color: white; text-decoration: none; border-radius: 6px; margin-right: 10px; }
+    .nav-actions { margin-top: 24px; }
+    .confirmation-msg { padding: 12px; background: #ecfdf5; border-radius: 6px; margin-bottom: 16px; }
+    .hint { color: #666; }
+    .link-detail { color: #667eea; }
+  </style>
+</body>
+</html>

@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Standortdetails – Hangar Management System</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="css/auth.css" />
+</head>
+<body>
+  <div class="container">
+    <header class="app-header">
+      <h1>✈️ Standortdetails</h1>
+      <div id="auth-header" class="auth-header"></div>
+    </header>
+
+    <div class="content">
+      <div id="location-alert"></div>
+      
+      <!-- Detailansicht -->
+      <div id="location-details" style="display: none;">
+        <!-- Anschrift -->
+        <div class="detail-section">
+          <h2>Anschrift</h2>
+          <p id="location-address" class="detail-value"></p>
+        </div>
+
+        <!-- Standortmerkmale -->
+        <div class="detail-section">
+          <h2>Standortmerkmale</h2>
+          <ul id="location-features" class="feature-list"></ul>
+        </div>
+
+        <!-- Angebotene Services -->
+        <div class="detail-section">
+          <h2>Angebotene Services</h2>
+          <ul id="location-services" class="feature-list"></ul>
+        </div>
+
+        <!-- Konditionen -->
+        <div class="detail-section">
+          <h2>Konditionen</h2>
+          <ul id="location-conditions" class="feature-list"></ul>
+        </div>
+
+        <!-- Hangaranbieter Info -->
+        <div class="detail-section">
+          <h2>Hangaranbieter</h2>
+          <div id="hangar-provider-info"></div>
+        </div>
+
+        <!-- Serviceanfrage stellen (StR.E.4 / UC FB.4) -->
+        <div class="detail-section">
+          <h2>Serviceanfrage stellen</h2>
+          <p class="detail-hint">Gewünschte Services und Zeitdauer für den ausgewählten Hangaranbieter angeben.</p>
+          <form id="service-request-form" onsubmit="sendServiceRequest(event)">
+            <div class="form-group">
+              <label for="service-request-aircraft">Flugzeug *</label>
+              <select id="service-request-aircraft" required>
+                <option value="">– Bitte wählen –</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="service-request-duration">Zeitdauer *</label>
+              <input type="text" id="service-request-duration" required placeholder="z.B. 2 Wochen" />
+            </div>
+            <div class="form-group">
+              <label for="service-request-services">Gewünschte Services *</label>
+              <textarea id="service-request-services" rows="3" required placeholder="z.B. Wartung, Inspektion, Lackierung"></textarea>
+            </div>
+            <button type="submit">Serviceanfrage senden</button>
+          </form>
+        </div>
+
+        <!-- Navigation -->
+        <div class="detail-section">
+          <a href="parking-search.html" class="btn-primary">Zurück zur Suchliste</a>
+        </div>
+      </div>
+
+      <!-- Fehlermeldung -->
+      <div id="error-section" style="display: none;">
+        <div class="alert alert-error">
+          <h3>Details momentan nicht verfügbar</h3>
+          <p>Die Standortdetails konnten nicht geladen werden.</p>
+          <a href="parking-search.html" class="btn-primary">Zurück zur Suchliste</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom-nav">
+    <a href="index.html" class="bottom-nav__item">Home</a>
+    <a href="profile.html" class="bottom-nav__item">Profil</a>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script>
+    let currentParkingId = null;
+    let currentLocation = null;
+    let currentHangarProviderId = null;
+
+    (function() {
+      const user = getCurrentUser();
+      const authHeader = document.getElementById('auth-header');
+
+      if (!user || user.role !== 'AIRCRAFT_OWNER') {
+        window.location.href = 'login.html';
+        return;
+      }
+
+      if (authHeader) {
+        authHeader.innerHTML = '<span class="auth-user">Hallo, ' + (user.name || user.email) + '</span> <a href="#" onclick="logout(); return false;" class="auth-link">Abmelden</a>';
+      }
+
+      // Parking ID aus URL Parameter
+      const urlParams = new URLSearchParams(window.location.search);
+      currentParkingId = urlParams.get('parkingId');
+      
+      if (!currentParkingId) {
+        showError('Keine Parking-ID angegeben');
+        return;
+      }
+
+      // UC FB.3 Schritt 1: Location-Details laden
+      loadLocationDetails(currentParkingId);
+    })();
+
+    async function loadLocationDetails(parkingId) {
+      try {
+        const res = await fetch(API_BASE + '/location/by-parking/' + parkingId);
+        
+        if (res.status === 404) {
+          // UC FB.3 Schritt 2a1: Details nicht verfügbar
+          const error = await res.json();
+          showError(error.message || 'Details momentan nicht verfügbar');
+          return;
+        }
+
+        const location = await res.json();
+        currentLocation = location;
+        
+        // UC FB.3 Schritt 2: Anschrift anzeigen
+        document.getElementById('location-address').textContent = location.location || 'Nicht angegeben';
+        
+        // UC FB.3 Schritt 3: Standortmerkmale anzeigen
+        const featuresList = document.getElementById('location-features');
+        if (location.features && location.features.length > 0) {
+          featuresList.innerHTML = Array.from(location.features).map(f => `<li>${f}</li>`).join('');
+        } else {
+          featuresList.innerHTML = '<li>Keine Merkmale angegeben</li>';
+        }
+        
+        // UC FB.3 Schritt 4: Services anzeigen
+        const servicesList = document.getElementById('location-services');
+        if (location.services && location.services.length > 0) {
+          servicesList.innerHTML = Array.from(location.services).map(s => `<li>${s}</li>`).join('');
+        } else {
+          servicesList.innerHTML = '<li>Keine Services angegeben</li>';
+        }
+        
+        // Konditionen anzeigen
+        const conditionsList = document.getElementById('location-conditions');
+        if (location.conditions && location.conditions.length > 0) {
+          conditionsList.innerHTML = Array.from(location.conditions).map(c => `<li>${c}</li>`).join('');
+        } else {
+          conditionsList.innerHTML = '<li>Keine Konditionen angegeben</li>';
+        }
+
+        // HangarProvider Info laden und FB.4-Voraussetzungen (hpId, Flugzeuge)
+        loadHangarProviderInfo(parkingId);
+        loadAircraftsForServiceRequest();
+        
+        document.getElementById('location-details').style.display = 'block';
+      } catch (err) {
+        console.error('Fehler beim Laden der Location-Details:', err);
+        showError('Fehler beim Laden der Details');
+      }
+    }
+
+    async function loadHangarProviderInfo(parkingId) {
+      try {
+        const res = await fetch(API_BASE + '/parkings/' + parkingId);
+        const parking = await res.json();
+        
+        if (parking.hangarProvider) {
+          const hp = parking.hangarProvider;
+          currentHangarProviderId = hp.id;
+          document.getElementById('hangar-provider-info').innerHTML = `
+            <p><strong>Name:</strong> ${hp.name || '-'}</p>
+            <p><strong>E-Mail:</strong> ${hp.email || '-'}</p>
+            <p><strong>Kontakt:</strong> ${hp.contact || '-'}</p>
+            <p><strong>Servicezeiten:</strong> ${hp.serviceHours || '-'}</p>
+            <p><strong>Stadt:</strong> ${hp.city || '-'}</p>
+          `;
+        }
+      } catch (err) {
+        console.error('Fehler beim Laden der HangarProvider-Info:', err);
+      }
+    }
+
+    async function loadAircraftsForServiceRequest() {
+      const user = getCurrentUser();
+      if (!user || !user.email) return;
+      const select = document.getElementById('service-request-aircraft');
+      if (!select) return;
+      try {
+        const res = await fetch(API_BASE + '/aircraft-owner/aircrafts?email=' + encodeURIComponent(user.email));
+        if (!res.ok) {
+          select.innerHTML = '<option value="">Keine Flugzeuge vorhanden</option>';
+          return;
+        }
+        const aircrafts = await res.json();
+        select.innerHTML = '<option value="">– Bitte wählen –</option>' +
+          (aircrafts && aircrafts.length ? aircrafts.map(ac =>
+            `<option value="${ac.id}">${ac.registrationMark || 'Flugzeug #' + ac.id}${ac.dimensions ? ' – ' + ac.dimensions : ''}</option>`
+          ).join('') : '<option value="">Keine Flugzeuge registriert</option>');
+      } catch (err) {
+        console.error('Fehler beim Laden der Flugzeuge:', err);
+        select.innerHTML = '<option value="">Fehler beim Laden</option>';
+      }
+    }
+
+    async function sendServiceRequest(event) {
+      event.preventDefault();
+      const alertEl = document.getElementById('location-alert');
+      if (!currentHangarProviderId) {
+        showAuthAlert(alertEl, 'Hangaranbieter konnte nicht ermittelt werden.', 'error');
+        return;
+      }
+      const acId = document.getElementById('service-request-aircraft').value;
+      const duration = document.getElementById('service-request-duration').value.trim();
+      const services = document.getElementById('service-request-services').value.trim();
+      if (!acId || !duration || !services) {
+        showAuthAlert(alertEl, 'Bitte alle Felder ausfüllen.', 'error');
+        return;
+      }
+      try {
+        const res = await fetch(API_BASE + '/service-request/save-aco', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            hpId: currentHangarProviderId,
+            acId: parseInt(acId, 10),
+            duration: duration,
+            services: services
+          })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.id) {
+          showSuccessPopup('Serviceanfrage wurde erfolgreich übermittelt.');
+          document.getElementById('service-request-form').reset();
+        } else {
+          showAuthAlert(alertEl, (data.message || 'Serviceanfrage konnte nicht gesendet werden.'), 'error');
+        }
+      } catch (err) {
+        console.error('Fehler beim Senden der Serviceanfrage:', err);
+        showAuthAlert(alertEl, 'Fehler beim Senden der Serviceanfrage.', 'error');
+      }
+    }
+
+    function showError(message) {
+      document.getElementById('location-details').style.display = 'none';
+      document.getElementById('error-section').style.display = 'block';
+      const errorDiv = document.querySelector('#error-section .alert-error p');
+      if (errorDiv) {
+        errorDiv.textContent = message;
+      }
+    }
+
+    function showSuccessPopup(message) {
+      // Popup overlay oluştur
+      const overlay = document.createElement('div');
+      overlay.id = 'success-popup-overlay';
+      overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; display: flex; align-items: center; justify-content: center;';
+      
+      // Popup içeriği
+      const popup = document.createElement('div');
+      popup.style.cssText = 'background: white; padding: 30px 40px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); text-align: center; max-width: 400px;';
+      
+      const icon = document.createElement('div');
+      icon.style.cssText = 'font-size: 48px; margin-bottom: 15px;';
+      icon.textContent = '✓';
+      
+      const text = document.createElement('div');
+      text.style.cssText = 'font-size: 18px; color: #333; margin-bottom: 20px; font-weight: 500;';
+      text.textContent = message;
+      
+      const button = document.createElement('button');
+      button.textContent = 'OK';
+      button.style.cssText = 'background: #667eea; color: white; border: none; padding: 12px 30px; border-radius: 6px; font-size: 16px; cursor: pointer; font-weight: 500;';
+      button.onclick = () => {
+        document.body.removeChild(overlay);
+      };
+      
+      popup.appendChild(icon);
+      popup.appendChild(text);
+      popup.appendChild(button);
+      overlay.appendChild(popup);
+      document.body.appendChild(overlay);
+      
+      // 3 saniye sonra otomatik kapat
+      setTimeout(() => {
+        if (document.body.contains(overlay)) {
+          document.body.removeChild(overlay);
+        }
+      }, 3000);
+    }
+  </script>
+  <style>
+    .detail-section {
+      margin-bottom: 30px;
+      padding: 20px;
+      background: #f9f9f9;
+      border-radius: 8px;
+    }
+    .detail-section h2 {
+      color: #667eea;
+      margin-bottom: 15px;
+      font-size: 1.3em;
+    }
+    .detail-value {
+      font-size: 16px;
+      color: #333;
+      padding: 10px;
+      background: white;
+      border-radius: 6px;
+    }
+    .feature-list {
+      list-style: none;
+      padding: 0;
+    }
+    .feature-list li {
+      padding: 8px 12px;
+      margin: 5px 0;
+      background: white;
+      border-left: 3px solid #667eea;
+      border-radius: 4px;
+    }
+    .btn-primary {
+      display: inline-block;
+      padding: 12px 24px;
+      background: #667eea;
+      color: white;
+      text-decoration: none;
+      border-radius: 6px;
+      transition: background 0.3s;
+      margin-right: 10px;
+    }
+    .btn-primary:hover {
+      background: #5568d3;
+    }
+    .detail-hint {
+      color: #666;
+      font-size: 0.95em;
+      margin-bottom: 15px;
+    }
+    .form-group select {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 1em;
+    }
+  </style>
+</body>
+</html>

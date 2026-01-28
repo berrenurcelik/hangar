@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -45,10 +46,27 @@ public class HPService {
     public HangarProvider saveProfile(String name, String email, String password, 
                                       String contact, String serviceHours, 
                                       Set<String> storageConditions) {
+        return saveProfile(name, email, password, contact, serviceHours, "", "", storageConditions);
+    }
+    
+    @Transactional
+    public HangarProvider saveProfile(String name, String email, String password, 
+                                      String contact, String serviceHours, String city,
+                                      Set<String> storageConditions) {
+        return saveProfile(name, email, password, contact, serviceHours, city, "", storageConditions);
+    }
+    
+    /**
+     * HA.1: saveProfil(name, contacts, email, password, role, costs, serviceHours, storageConditions)
+     */
+    @Transactional
+    public HangarProvider saveProfile(String name, String email, String password, 
+                                      String contact, String serviceHours, String city, String costs,
+                                      Set<String> storageConditions) {
         
         // Schritt 1 & 2: Erzeugung der Instanz (Benutzer + HangarProvider)
         HangarProvider hangarProvider = new HangarProvider(
-                name, email, password, contact, serviceHours, storageConditions
+                name, email, password, contact, serviceHours, city, costs, storageConditions
         );
         
         // Schritt 3: Hinzufügen zum Katalog
@@ -116,5 +134,19 @@ public class HPService {
         
         // 5: Beide zum StatusCatalog hinzufügen
         statusCatalog.add(mt, fr);
+    }
+
+    /** HA.5: eingelagerte Flugzeuge (dem Hangaranbieterprofil zugeordnet) */
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public List<Aircraft> getAircraftInHangarByEmail(String email) {
+        HangarProvider hp = hpCatalog.getHPByEmail(email);
+        return new ArrayList<>(hp.getSelectedAircrafts());
+    }
+
+    /** HA.5: saveInput per E-Mail (HP wird über email ermittelt) */
+    @Transactional
+    public void saveInputByProvider(String email, Long aircraftId, String maintenance, String flightReadiness) {
+        HangarProvider hp = hpCatalog.getHPByEmail(email);
+        saveInput(hp.getId(), aircraftId, maintenance, flightReadiness);
     }
 }

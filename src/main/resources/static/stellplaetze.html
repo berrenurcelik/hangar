@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stellplätze – Hangar Management System</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="css/auth.css" />
+</head>
+<body>
+  <div class="container">
+    <header class="app-header">
+      <h1>✈️ Stellplätze</h1>
+      <div id="auth-header" class="auth-header"></div>
+    </header>
+
+    <div class="content">
+      <div id="parking-alert"></div>
+
+      <!-- Verwaltungsseite, aktuelle Übersicht -->
+      <div id="list-section">
+        <h2>Ihre Stellplätze</h2>
+        <p id="no-parkings" class="alert-info" style="display: none;">Noch keine Stellplätze eingetragen. Nutzen Sie „Stellplätze bearbeiten“.</p>
+        <table class="data-table" id="parkings-table" style="display: none;">
+          <thead>
+            <tr>
+              <th>Nr.</th>
+              <th>Status</th>
+              <th>Kategorie / Standort</th>
+            </tr>
+          </thead>
+          <tbody id="parkingsTableBody"></tbody>
+        </table>
+        <button type="button" id="btn-edit-parking" class="btn-primary" style="margin-top: 16px;">Stellplätze bearbeiten</button>
+      </div>
+
+      <!-- Eingabe Anzahl und Kategorien -->
+      <div id="form-section" style="display: none;">
+        <h2>Stellplätze bearbeiten</h2>
+        <p class="hint">Anzahl positiv = Stellplätze hinzufügen, negativ = Stellplätze entfernen. Kategorie z.B. Indoor/Outdoor.</p>
+        <form id="parking-form">
+          <div class="form-group">
+            <label for="park-category">Kategorie *</label>
+            <input type="text" id="park-category" required placeholder="z.B. Indoor, Outdoor" />
+          </div>
+          <div class="form-group">
+            <label for="park-status">Status *</label>
+            <select id="park-status" required>
+              <option value="AVAILABLE">Verfügbar (AVAILABLE)</option>
+              <option value="OCCUPIED">Belegt (OCCUPIED)</option>
+              <option value="RESERVED">Reserviert (RESERVED)</option>
+              <option value="MAINTENANCE">Wartung (MAINTENANCE)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="park-number">Anzahl * (positiv = hinzufügen, negativ = entfernen)</label>
+            <input type="number" id="park-number" required placeholder="z.B. 2 oder -1" />
+          </div>
+          <button type="submit" class="btn-primary">Eingabe bestätigen</button>
+          <button type="button" id="btn-cancel-form" class="btn-secondary">Abbrechen</button>
+        </form>
+      </div>
+
+      <!-- Bestätigung -->
+      <div id="success-section" style="display: none;">
+        <div class="alert alert-success">
+          <h3>Aktualisierung gespeichert</h3>
+          <p>Die Stellplatzangaben wurden gespeichert und sind für Flugzeugbesitzer sichtbar.</p>
+        </div>
+        <button type="button" id="btn-back-list" class="btn-primary">Zurück zur Übersicht</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script>
+    let parkings = [];
+
+    (function() {
+      const user = getCurrentUser();
+      const authHeader = document.getElementById('auth-header');
+      if (!user || user.role !== 'HANGAR_PROVIDER') {
+        window.location.href = 'login.html';
+        return;
+      }
+      if (authHeader) {
+        authHeader.innerHTML = '<span class="auth-user">Hallo, ' + (user.name || user.email) + '</span> <a href="#" onclick="logout(); return false;" class="auth-link">Abmelden</a>';
+      }
+      loadParkings(user.email);
+    })();
+
+    async function loadParkings(email) {
+      const alertEl = document.getElementById('parking-alert');
+      try {
+        const res = await fetch(API_BASE + '/parkings/by-provider?email=' + encodeURIComponent(getCurrentUser().email));
+        if (!res.ok) {
+          showAuthAlert(alertEl, 'Stellplätze konnten nicht geladen werden.', 'error');
+          return;
+        }
+        parkings = await res.json();
+        renderList();
+      } catch (e) {
+        console.error(e);
+        showAuthAlert(alertEl, 'Fehler beim Laden der Stellplätze.', 'error');
+      }
+    }
+
+    function renderList() {
+      const tbody = document.getElementById('parkingsTableBody');
+      const table = document.getElementById('parkings-table');
+      const noEl = document.getElementById('no-parkings');
+      if (!parkings || parkings.length === 0) {
+        noEl.style.display = 'block';
+        table.style.display = 'none';
+        tbody.innerHTML = '';
+        return;
+      }
+      noEl.style.display = 'none';
+      table.style.display = 'table';
+      tbody.innerHTML = parkings.map((p, i) => `
+        <tr>
+          <td>${i + 1}</td>
+          <td>${p.status || '-'}</td>
+          <td>${p.siteStatus || '-'}</td>
+        </tr>
+      `).join('');
+    }
+
+    function showSection(name) {
+      document.getElementById('list-section').style.display = name === 'list' ? 'block' : 'none';
+      document.getElementById('form-section').style.display = name === 'form' ? 'block' : 'none';
+      document.getElementById('success-section').style.display = name === 'success' ? 'block' : 'none';
+    }
+
+    document.getElementById('btn-edit-parking').addEventListener('click', () => {
+      document.getElementById('park-category').value = '';
+      document.getElementById('park-status').value = 'AVAILABLE';
+      document.getElementById('park-number').value = '';
+      showSection('form');
+    });
+
+    document.getElementById('btn-cancel-form').addEventListener('click', () => showSection('list'));
+
+    function validateForm() {
+      const cat = (document.getElementById('park-category').value || '').trim();
+      const status = (document.getElementById('park-status').value || '').trim();
+      const numVal = document.getElementById('park-number').value;
+      const num = numVal === '' ? null : parseInt(numVal, 10);
+      const missing = [];
+      if (!cat) missing.push('Kategorie');
+      if (!status) missing.push('Status');
+      if (num === null || isNaN(num) || num === 0) missing.push('Anzahl (ungleich 0)');
+      return missing;
+    }
+
+    document.getElementById('parking-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const alertEl = document.getElementById('parking-alert');
+      const missing = validateForm();
+      if (missing.length > 0) {
+        showAuthAlert(alertEl, 'Pflichtfelder fehlen oder ungültige Werte: ' + missing.join(', ') + '. Bitte fehlende oder fehlerhafte Daten korrigieren.', 'error');
+        return;
+      }
+      const user = getCurrentUser();
+      const body = {
+        email: user.email,
+        category: document.getElementById('park-category').value.trim(),
+        status: document.getElementById('park-status').value.trim(),
+        number: parseInt(document.getElementById('park-number').value, 10)
+      };
+      try {
+        const res = await fetch(API_BASE + '/parkings/update-by-provider', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && (data.id != null || data.status != null)) {
+          showSection('success');
+          loadParkings(user.email);
+        } else {
+          const msg = (data.message || data.error || 'Aktualisierung fehlgeschlagen.') +
+            (data.missingFields && data.missingFields.length ? ' Fehlende Felder: ' + data.missingFields.join(', ') : '');
+          showAuthAlert(alertEl, msg, 'error');
+        }
+      } catch (err) {
+        console.error(err);
+        showAuthAlert(alertEl, 'Netzwerkfehler beim Speichern.', 'error');
+      }
+    });
+
+    document.getElementById('btn-back-list').addEventListener('click', () => showSection('list'));
+  </script>
+  <style>
+    .hint { color: #666; margin-bottom: 15px; }
+    .alert-info { padding: 12px; background: #eff6ff; border-radius: 6px; color: #1e40af; margin: 16px 0; }
+    .alert-success { padding: 16px; background: #c6f6d5; border-radius: 8px; color: #22543d; margin: 16px 0; }
+    .btn-primary { padding: 12px 24px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; margin-right: 10px; }
+    .btn-secondary { padding: 12px 24px; background: transparent; color: #667eea; border: 1px solid #667eea; border-radius: 6px; cursor: pointer; text-decoration: none; display: inline-block; margin-right: 10px; }
+  </style>
+  <div class="bottom-nav">
+    <a href="index.html" class="bottom-nav__item bottom-nav__item--active">Home</a>
+    <a href="hp-profile.html" class="bottom-nav__item">Profil</a>
+  </div>
+</body>
+</html>

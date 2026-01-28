@@ -6,4 +6,6 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface AircraftOwnerRepository extends JpaRepository<AircraftOwner, Long> {
+
+    java.util.Optional<AircraftOwner> findByEmail(String email);
 }

@@ -27,13 +27,27 @@ public class PartsController {
     }
     
     /**
-     * UC FB.6: searchParts Endpunkt
+     * UC FB.6 / StR.E.6: searchParts – Suchkriterien, durchsucht Anbieterbestände.
+     * Bei keiner Treffer: leere Liste (5a1), Frontend zeigt „keine Ergebnisse“.
      */
     @GetMapping("/search")
-    public ResponseEntity<List<SparePart>> searchParts(@RequestParam String criteria) {
+    public ResponseEntity<List<SparePart>> searchParts(@RequestParam(required = false) String criteria) {
         try {
-            List<SparePart> parts = partsManager.searchParts(criteria);
+            List<SparePart> parts = partsManager.searchParts(criteria != null ? criteria : "");
             return ResponseEntity.ok(parts);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+    
+    /**
+     * StR.E.6 Schritt 7: Detailinformationen des Artikels
+     */
+    @GetMapping("/{id}")
+    public ResponseEntity<SparePart> getPartById(@PathVariable Long id) {
+        try {
+            SparePart part = partsManager.getPartById(id);
+            return ResponseEntity.ok(part);
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();
         }

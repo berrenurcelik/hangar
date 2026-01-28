@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Übergabe- und Rückgabetermine – Hangar Management System</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="css/auth.css" />
+</head>
+<body>
+  <div class="container">
+    <header class="app-header">
+      <h1>✈️ Übergabe- und Rückgabetermine</h1>
+      <div id="auth-header" class="auth-header"></div>
+    </header>
+
+    <div class="content">
+      <div id="termine-alert"></div>
+
+      <!-- StR.E.7 Schritt 1–2: Bereich öffnen, Hangaranbieter + bestehende Buchungen -->
+      <div id="overview-section">
+        <h2>Verfügbare Hangaranbieter</h2>
+        <p class="hint">Wählen Sie einen Anbieter, für den Sie einen Übergabe- oder Rückgabetermin vereinbaren möchten.</p>
+        <div id="hp-list" class="card-list"></div>
+
+        <h2 style="margin-top: 30px;">Ihre bestehenden Buchungen</h2>
+        <div id="bookings-list">
+          <p id="no-bookings" class="hint" style="display: none;">Keine Übergabe- oder Rückgabetermine vorhanden.</p>
+          <table class="data-table" id="bookings-table" style="display: none;">
+            <thead>
+              <tr><th>Datum / Uhrzeit</th><th>Typ</th><th>Hangaranbieter</th><th>Status</th></tr>
+            </thead>
+            <tbody id="bookings-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- StR.E.7 Schritt 3–4: Anbieter gewählt, Optionen Übergabe / Rückgabe -->
+      <div id="choice-section" style="display: none;">
+        <h2>Termin vereinbaren</h2>
+        <p><strong>Hangaranbieter:</strong> <span id="chosen-hp-name"></span></p>
+        <div class="button-group">
+          <button type="button" class="btn-primary" id="btn-handover">Übergabetermin vereinbaren</button>
+          <button type="button" class="btn-primary" id="btn-return">Rückgabetermin vereinbaren</button>
+        </div>
+        <a href="#" id="back-to-overview" class="btn-secondary">Zurück zur Übersicht</a>
+      </div>
+
+      <!-- StR.E.7 Schritt 5–7 / 5a–5a2: Zeitfenster wählen und bestätigen -->
+      <div id="slots-section" style="display: none;">
+        <h2 id="slots-title">Verfügbare Zeitfenster</h2>
+        <p id="slot-error" class="alert-error" style="display: none;">Termin kann nicht bestätigt werden. Bitte wählen Sie ein anderes Zeitfenster.</p>
+        <div id="slots-list" class="slot-grid"></div>
+        <a href="#" id="back-to-choice" class="btn-secondary">Zurück zur Auswahl</a>
+      </div>
+
+      <!-- Bestätigung (Schritt 9–11) -->
+      <div id="confirm-section" style="display: none;">
+        <div class="alert alert-success">
+          <h3>Termin bestätigt</h3>
+          <p id="confirm-msg"></p>
+          <p>Der Hangaranbieter wurde informiert und muss den Termin noch bestätigen. Nach seiner Bestätigung erscheint der Termin bei beiden im Profil.</p>
+        </div>
+        <a href="uebergabe-termine.html" class="btn-primary">Weitere Termine</a>
+        <a href="profile.html" class="btn-primary">Zum Profil</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom-nav">
+    <a href="index.html" class="bottom-nav__item">Home</a>
+    <a href="profile.html" class="bottom-nav__item">Profil</a>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script>
+    let chosenHpId = null;
+    let chosenHpName = null;
+    let chosenType = null; // HANDOVER | RETURN
+    let currentSlots = [];
+    let ownerId = null;
+
+    (function() {
+      const user = getCurrentUser();
+      const authHeader = document.getElementById('auth-header');
+      if (!user || user.role !== 'AIRCRAFT_OWNER') {
+        window.location.href = 'login.html';
+        return;
+      }
+      if (authHeader) {
+        authHeader.innerHTML = '<span class="auth-user">Hallo, ' + (user.name || user.email) + '</span> <a href="profile.html" class="auth-link">Profil</a> <a href="#" onclick="logout(); return false;" class="auth-link">Abmelden</a>';
+      }
+      loadOverview(user.email);
+    })();
+
+    async function loadOverview(email) {
+      const alertEl = document.getElementById('termine-alert');
+      try {
+        const [hpRes, bookRes, profileRes] = await Promise.all([
+          fetch(API_BASE + '/hangar-providers'),
+          fetch(API_BASE + '/handover-appointments/by-owner?email=' + encodeURIComponent(email)),
+          fetch(API_BASE + '/aircraft-owner/profile/by-email?email=' + encodeURIComponent(email))
+        ]);
+        const hps = hpRes.ok ? await hpRes.json() : [];
+        const bookings = bookRes.ok ? await bookRes.json() : [];
+        if (profileRes.ok) {
+          const profile = await profileRes.json();
+          ownerId = profile.id;
+        }
+        document.getElementById('hp-list').innerHTML = (hps || []).map(hp =>
+          `<div class="card" data-id="${hp.id}" data-name="${(hp.name || '').replace(/"/g, '&quot;')}"><strong>${hp.name || '-'}</strong><br/>${hp.city || ''} · ${hp.serviceHours || ''}</div>`
+        ).join('') || '<p class="hint">Keine Hangaranbieter geladen.</p>';
+        document.getElementById('hp-list').querySelectorAll('.card').forEach(el => {
+          el.addEventListener('click', () => selectProvider(Number(el.getAttribute('data-id')), el.getAttribute('data-name')));
+        });
+        const tbody = document.getElementById('bookings-tbody');
+        if (bookings && bookings.length > 0) {
+          document.getElementById('no-bookings').style.display = 'none';
+          document.getElementById('bookings-table').style.display = 'table';
+          tbody.innerHTML = bookings.map(b => {
+            const d = b.date ? new Date(b.date) : null;
+            const hp = b.hangarProvider || {};
+            const typ = (b.appointmentType === 'RETURN') ? 'Rückgabe' : 'Übergabe';
+            const statusText = b.status === 'PENDING' ? 'Warte auf Bestätigung' : b.status === 'CONFIRMED' ? 'Bestätigt' : b.status === 'REJECTED' ? 'Abgelehnt' : (b.status || '-');
+            return `<tr><td>${d ? d.toLocaleString('de-DE') : '-'}</td><td>${typ}</td><td>${hp.name || '-'}</td><td>${statusText}</td></tr>`;
+          }).join('');
+        } else {
+          document.getElementById('no-bookings').style.display = 'block';
+          document.getElementById('bookings-table').style.display = 'none';
+        }
+      } catch (e) {
+        console.error(e);
+        showAuthAlert(alertEl, 'Fehler beim Laden.', 'error');
+      }
+    }
+
+    function selectProvider(id, name) {
+      chosenHpId = id;
+      chosenHpName = name || 'Hangaranbieter';
+      document.getElementById('overview-section').style.display = 'none';
+      document.getElementById('choice-section').style.display = 'block';
+      document.getElementById('chosen-hp-name').textContent = chosenHpName;
+    }
+
+    document.getElementById('back-to-overview').addEventListener('click', function(e) {
+      e.preventDefault();
+      document.getElementById('choice-section').style.display = 'none';
+      document.getElementById('overview-section').style.display = 'block';
+    });
+
+    document.getElementById('btn-handover').addEventListener('click', () => showSlots('HANDOVER'));
+    document.getElementById('btn-return').addEventListener('click', () => showSlots('RETURN'));
+
+    async function showSlots(type) {
+      chosenType = type;
+      document.getElementById('choice-section').style.display = 'none';
+      document.getElementById('slots-section').style.display = 'block';
+      document.getElementById('slot-error').style.display = 'none';
+      document.getElementById('slots-title').textContent = type === 'HANDOVER' ? 'Verfügbare Zeitfenster für Übergabe' : 'Verfügbare Zeitfenster für Rückgabe';
+      const alertEl = document.getElementById('termine-alert');
+      try {
+        const res = await fetch(API_BASE + '/handover-appointments/available-slots?hangarProviderId=' + chosenHpId);
+        currentSlots = res.ok ? await res.json() : [];
+        const list = document.getElementById('slots-list');
+        list.innerHTML = (currentSlots || []).slice(0, 42).map((slot, i) => {
+          const d = new Date(slot);
+          const label = d.toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' });
+          return `<button type="button" class="slot-btn" data-ts="${d.getTime()}">${label}</button>`;
+        }).join('');
+        list.querySelectorAll('.slot-btn').forEach(btn => {
+          btn.addEventListener('click', () => submitSlot(Number(btn.getAttribute('data-ts'))));
+        });
+      } catch (e) {
+        console.error(e);
+        showAuthAlert(alertEl, 'Zeitfenster konnten nicht geladen werden.', 'error');
+      }
+    }
+
+    document.getElementById('back-to-choice').addEventListener('click', function(e) {
+      e.preventDefault();
+      document.getElementById('slots-section').style.display = 'none';
+      document.getElementById('choice-section').style.display = 'block';
+    });
+
+    async function submitSlot(ts) {
+      if (!ownerId) {
+        showAuthAlert(document.getElementById('termine-alert'), 'Profil konnte nicht zugeordnet werden.', 'error');
+        return;
+      }
+      const alertEl = document.getElementById('termine-alert');
+      try {
+        const res = await fetch(API_BASE + '/appointments/save-handover', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            hpId: chosenHpId,
+            acoId: ownerId,
+            date: ts,
+            status: 'PENDING',
+            type: chosenType
+          })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.id) {
+          document.getElementById('slots-section').style.display = 'none';
+          document.getElementById('confirm-section').style.display = 'block';
+          const typ = chosenType === 'HANDOVER' ? 'Übergabe' : 'Rückgabe';
+          document.getElementById('confirm-msg').textContent = typ + 'termin am ' + new Date(ts).toLocaleString('de-DE') + ' wurde angefragt. Der Hangaranbieter muss noch bestätigen – Sie sehen den Status unter „Ihre bestehenden Buchungen“.';
+        } else if (res.status === 409) {
+          document.getElementById('slot-error').style.display = 'block';
+          document.getElementById('slot-error').textContent = (data.error || 'Termin kann nicht bestätigt werden') + ' Bitte wählen Sie ein anderes Zeitfenster.';
+          showSlots(chosenType);
+        } else {
+          showAuthAlert(alertEl, 'Termin konnte nicht gespeichert werden.', 'error');
+        }
+      } catch (e) {
+        console.error(e);
+        showAuthAlert(alertEl, 'Fehler beim Speichern.', 'error');
+      }
+    }
+  </script>
+  <style>
+    .hint { color: #666; margin: 10px 0; }
+    .card-list { display: flex; flex-wrap: wrap; gap: 12px; }
+    .card { padding: 16px; border: 1px solid #ddd; border-radius: 8px; cursor: pointer; min-width: 200px; }
+    .card:hover { background: #f0f0f0; }
+    .button-group { display: flex; gap: 12px; margin: 20px 0; flex-wrap: wrap; }
+    .btn-primary { padding: 12px 24px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; }
+    .btn-secondary { display: inline-block; margin-top: 12px; color: #667eea; }
+    .slot-grid { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+    .slot-btn { padding: 10px 14px; background: #f0f0f0; border: 1px solid #ccc; border-radius: 6px; cursor: pointer; font-size: 0.9em; }
+    .slot-btn:hover { background: #e0e0e0; }
+    .alert-error { color: #b91c1c; background: #fef2f2; padding: 12px; border-radius: 6px; margin-bottom: 12px; }
+  </style>
+</body>
+</html>

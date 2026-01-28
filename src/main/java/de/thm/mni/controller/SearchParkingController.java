@@ -20,13 +20,24 @@ public class SearchParkingController {
      * UC FB.2: searchAvailableParking Endpunkt
      */
     @GetMapping("/available-parking")
-    public ResponseEntity<List<Parking>> searchAvailableParking(@RequestParam String city) {
+    public ResponseEntity<?> searchAvailableParking(@RequestParam String city) {
         try {
             List<Parking> parkings = searchParking.searchAvailableParking(city);
             return ResponseEntity.ok(parkings);
         } catch (RuntimeException e) {
-            // Keine Parkplätze gefunden
-            return ResponseEntity.notFound().build();
+            // UC FB.2: 3a1 - Keine Parkplätze gefunden
+            return ResponseEntity.status(404).body(new ErrorResponse(e.getMessage()));
         }
     }
+    
+    /**
+     * UC FB.2: Liste der verfügbaren Großstädte
+     */
+    @GetMapping("/cities")
+    public ResponseEntity<List<String>> getAvailableCities() {
+        List<String> cities = searchParking.getAvailableCities();
+        return ResponseEntity.ok(cities);
+    }
+    
+    public record ErrorResponse(String message) {}
 }

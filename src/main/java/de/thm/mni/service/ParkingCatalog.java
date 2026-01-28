@@ -1,11 +1,13 @@
 package de.thm.mni.service;
 
 import de.thm.mni.model.Parking;
+import de.thm.mni.repository.HangarProviderRepository;
 import de.thm.mni.repository.ParkingRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * UC HA.3 & FB.2: ParkingCatalog
@@ -17,6 +19,9 @@ public class ParkingCatalog {
 
     @Autowired
     private ParkingRepository repository;
+    
+    @Autowired
+    private HangarProviderRepository hangarProviderRepository;
 
     /**
      * Im Diagramm: "2a.1: add(parking, number)" Nachricht
@@ -44,10 +49,31 @@ public class ParkingCatalog {
      * Sucht verfügbare Parkplätze nach Stadt
      */
     public List<Parking> searchAvailableParking(String city) {
-        // Vereinfachte Suche - in echter Implementierung würde man nach Stadt filtern
-        // Hier geben wir alle verfügbaren Parkplätze zurück (number > 0)
+        // UC FB.2: Parkplätze nach Stadt filtern
+        // Nur verfügbare Parkplätze (status = AVAILABLE) in der gewählten Stadt
         return repository.findAll().stream()
-                .filter(p -> p.getNumber() != null && p.getNumber() > 0)
+                .filter(p -> {
+                    // Verfügbar sein (AVAILABLE status)
+                    boolean isAvailable = "AVAILABLE".equalsIgnoreCase(p.getStatus());
+                    // Stadt muss übereinstimmen (über HangarProvider)
+                    boolean cityMatches = p.getHangarProvider() != null 
+                            && p.getHangarProvider().getCity() != null
+                            && p.getHangarProvider().getCity().equalsIgnoreCase(city);
+                    return isAvailable && cityMatches;
+                })
                 .toList();
+    }
+    
+    /**
+     * UC FB.2: Liste der verfügbaren Großstädte
+     * Gibt alle Städte zurück, in denen HangarProvider mit Parkplätzen existieren
+     */
+    public List<String> getAvailableCities() {
+        return hangarProviderRepository.findAll().stream()
+                .filter(hp -> hp.getCity() != null && !hp.getCity().trim().isEmpty())
+                .map(hp -> hp.getCity())
+                .distinct()
+                .sorted()
+                .collect(Collectors.toList());
     }
 }

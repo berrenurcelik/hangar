@@ -2,6 +2,7 @@ package de.thm.mni.controller;
 
 import de.thm.mni.model.ArticleReservation;
 import de.thm.mni.service.ArticleReservationService;
+import static de.thm.mni.service.ArticleReservationService.ERROR_ARTIKEL_NICHT_VERFUEGBAR;
 import de.thm.mni.repository.ArticleReservationRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -9,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 
 @RestController
 @RequestMapping("/api/article-reservation")
@@ -42,16 +44,17 @@ public class ArticleReservationController {
     }
     
     /**
-     * UC FB.10: createArticleReservation Endpunkt
+     * UC FB.10 : createArticleReservation Endpunkt.
+     * Bei nicht verfügbarem Artikel 400 mit Fehlermeldung.
      */
     @PostMapping("/create")
-    public ResponseEntity<ArticleReservation> createArticleReservation(@RequestBody Map<String, Object> request) {
+    public ResponseEntity<?> createArticleReservation(@RequestBody Map<String, Object> request) {
         try {
             Long acoId = Long.valueOf(request.get("acoId").toString());
             Long psId = Long.valueOf(request.get("psId").toString());
             Long sparePartID = Long.valueOf(request.get("sparePartID").toString());
             Integer quantity = Integer.valueOf(request.get("quantity").toString());
-            String status = request.get("status").toString();
+            String status = request.get("status") != null ? request.get("status").toString() : "RESERVED";
             
             ArticleReservation ar = articleReservationService.createArticleReservation(
                 acoId, psId, sparePartID, quantity, status
@@ -59,6 +62,12 @@ public class ArticleReservationController {
             
             return ResponseEntity.ok(ar);
         } catch (RuntimeException e) {
+            if (ERROR_ARTIKEL_NICHT_VERFUEGBAR.equals(e.getMessage())) {
+                Map<String, String> body = new HashMap<>();
+                body.put("error", "NOT_AVAILABLE");
+                body.put("message", "Der Artikel ist in der Zwischenzeit reserviert oder entfernt worden.");
+                return ResponseEntity.badRequest().body(body);
+            }
             return ResponseEntity.badRequest().build();
         }
     }

@@ -26,6 +26,17 @@ public class HPCatalog {
         return repository.findById(hpId)
                 .orElseThrow(() -> new RuntimeException("HangarProvider nicht gefunden mit ID: " + hpId));
     }
+
+    /** HA.5: HangarProvider per E-Mail für „Flugzeuge im Hangar“ und save-input-by-provider */
+    public HangarProvider getHPByEmail(String email) {
+        return repository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("HangarProvider nicht gefunden: " + email));
+    }
+
+    /** HA.4: HangarProvider-Änderungen persistieren */
+    public void update(HangarProvider hp) {
+        repository.save(hp);
+    }
     
     /**
      * Remove HangarProvider (for deleteProfile)

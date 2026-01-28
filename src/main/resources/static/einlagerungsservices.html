@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Einlagerungsservices – Hangar Management System</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="css/auth.css" />
+</head>
+<body>
+  <div class="container">
+    <header class="app-header">
+      <h1>✈️ Einlagerungsservices</h1>
+      <div id="auth-header" class="auth-header"></div>
+    </header>
+
+    <div class="content">
+      <div id="services-alert"></div>
+
+      <!-- Verwaltungsseite, Liste bereits eingetragener Services -->
+      <div id="list-section">
+        <h2>Ihre Einlagerungsservices</h2>
+        <p id="no-services" class="alert-info" style="display: none;">Noch keine Services eingetragen. Nutzen Sie „Neuen Service hinzufügen“.</p>
+        <table class="data-table" id="services-table" style="display: none;">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Beschreibung</th>
+              <th>Kosten (€)</th>
+              <th>Bedingungen</th>
+            </tr>
+          </thead>
+          <tbody id="servicesTableBody"></tbody>
+        </table>
+        <button type="button" id="btn-add-service" class="btn-primary" style="margin-top: 16px;">Neuen Service hinzufügen</button>
+      </div>
+
+      <!-- Formular Servicedetails -->
+      <div id="form-section" style="display: none;">
+        <h2>Neuen Service anlegen</h2>
+        <form id="service-form">
+          <div class="form-group">
+            <label for="svc-name">Name *</label>
+            <input type="text" id="svc-name" required placeholder="z.B. Standard-Einlagerung" />
+          </div>
+          <div class="form-group">
+            <label for="svc-description">Beschreibung *</label>
+            <textarea id="svc-description" rows="3" required placeholder="Kurze Beschreibung des Angebots"></textarea>
+          </div>
+          <div class="form-group">
+            <label for="svc-cost">Kosten (€) *</label>
+            <input type="number" id="svc-cost" required min="0" placeholder="z.B. 50" />
+          </div>
+          <div class="form-group">
+            <label for="svc-conditions">Bedingungen (kommagetrennt, optional)</label>
+            <input type="text" id="svc-conditions" placeholder="z.B. Klimatisiert, 24/7 Sicherheit" />
+          </div>
+          <button type="submit" class="btn-primary">Eingabe bestätigen</button>
+          <button type="button" id="btn-cancel-form" class="btn-secondary">Abbrechen</button>
+        </form>
+      </div>
+
+      <!-- Bestätigung -->
+      <div id="success-section" style="display: none;">
+        <div class="alert alert-success">
+          <h3>Service gespeichert</h3>
+          <p>Der neue Service wurde erfolgreich angelegt und ist für Flugzeugbesitzer sichtbar.</p>
+        </div>
+        <button type="button" id="btn-back-list" class="btn-primary">Zurück zur Liste</button>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script>
+    let services = [];
+
+    (function() {
+      const user = getCurrentUser();
+      const authHeader = document.getElementById('auth-header');
+      if (!user || user.role !== 'HANGAR_PROVIDER') {
+        window.location.href = 'login.html';
+        return;
+      }
+      if (authHeader) {
+        authHeader.innerHTML = '<span class="auth-user">Hallo, ' + (user.name || user.email) + '</span> <a href="#" onclick="logout(); return false;" class="auth-link">Abmelden</a>';
+      }
+      loadServices(user.email);
+    })();
+
+    async function loadServices(email) {
+      const alertEl = document.getElementById('services-alert');
+      try {
+        const res = await fetch(API_BASE + '/services/by-provider?email=' + encodeURIComponent(getCurrentUser().email));
+        if (!res.ok) {
+          showAuthAlert(alertEl, 'Services konnten nicht geladen werden.', 'error');
+          return;
+        }
+        services = await res.json();
+        renderList();
+      } catch (e) {
+        console.error(e);
+        showAuthAlert(alertEl, 'Fehler beim Laden der Services.', 'error');
+      }
+    }
+
+    function renderList() {
+      const tbody = document.getElementById('servicesTableBody');
+      const table = document.getElementById('services-table');
+      const noEl = document.getElementById('no-services');
+      if (!services || services.length === 0) {
+        noEl.style.display = 'block';
+        table.style.display = 'none';
+        tbody.innerHTML = '';
+        return;
+      }
+      noEl.style.display = 'none';
+      table.style.display = 'table';
+      tbody.innerHTML = services.map(s => {
+        const cond = s.conditions && s.conditions.length ? Array.from(s.conditions).join(', ') : '-';
+        return `
+          <tr>
+            <td>${s.name || '-'}</td>
+            <td>${(s.description || '-').substring(0, 60)}${(s.description || '').length > 60 ? '…' : ''}</td>
+            <td>${s.price != null ? s.price : '-'}</td>
+            <td>${cond}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function showSection(name) {
+      document.getElementById('list-section').style.display = name === 'list' ? 'block' : 'none';
+      document.getElementById('form-section').style.display = name === 'form' ? 'block' : 'none';
+      document.getElementById('success-section').style.display = name === 'success' ? 'block' : 'none';
+    }
+
+    document.getElementById('btn-add-service').addEventListener('click', () => {
+      document.getElementById('svc-name').value = '';
+      document.getElementById('svc-description').value = '';
+      document.getElementById('svc-cost').value = '';
+      document.getElementById('svc-conditions').value = '';
+      showSection('form');
+    });
+
+    document.getElementById('btn-cancel-form').addEventListener('click', () => showSection('list'));
+
+    function validateForm() {
+      const name = (document.getElementById('svc-name').value || '').trim();
+      const desc = (document.getElementById('svc-description').value || '').trim();
+      const costVal = document.getElementById('svc-cost').value;
+      const cost = costVal === '' ? null : parseInt(costVal, 10);
+      const missing = [];
+      if (!name) missing.push('Name');
+      if (!desc) missing.push('Beschreibung');
+      if (cost === null || isNaN(cost) || cost < 0) missing.push('Kosten');
+      return missing;
+    }
+
+    document.getElementById('service-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const alertEl = document.getElementById('services-alert');
+      const missing = validateForm();
+      if (missing.length > 0) {
+        showAuthAlert(alertEl, 'Pflichtfelder fehlen oder ungültige Werte: ' + missing.join(', ') + '. Bitte fehlende oder fehlerhafte Daten korrigieren.', 'error');
+        return;
+      }
+      const user = getCurrentUser();
+      const raw = (document.getElementById('svc-conditions').value || '').trim();
+      const conditions = raw ? raw.split(/[\s,;]+/).map(s => s.trim()).filter(Boolean) : [];
+      const body = {
+        email: user.email,
+        name: document.getElementById('svc-name').value.trim(),
+        description: document.getElementById('svc-description').value.trim(),
+        cost: parseInt(document.getElementById('svc-cost').value, 10),
+        conditions
+      };
+      try {
+        const res = await fetch(API_BASE + '/services/by-provider', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.id) {
+          showSection('success');
+          loadServices(user.email);
+        } else {
+          const msg = (data.message || data.error || 'Speichern fehlgeschlagen.') +
+            (data.missingFields && data.missingFields.length ? ' Fehlende Felder: ' + data.missingFields.join(', ') : '');
+          showAuthAlert(alertEl, msg, 'error');
+        }
+      } catch (err) {
+        console.error(err);
+        showAuthAlert(alertEl, 'Netzwerkfehler beim Speichern.', 'error');
+      }
+    });
+
+    document.getElementById('btn-back-list').addEventListener('click', () => showSection('list'));
+  </script>
+  <style>
+    .alert-info { padding: 12px; background: #eff6ff; border-radius: 6px; color: #1e40af; margin: 16px 0; }
+    .alert-success { padding: 16px; background: #c6f6d5; border-radius: 8px; color: #22543d; margin: 16px 0; }
+    .btn-primary { padding: 12px 24px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; margin-right: 10px; }
+    .btn-secondary { padding: 12px 24px; background: transparent; color: #667eea; border: 1px solid #667eea; border-radius: 6px; cursor: pointer; text-decoration: none; display: inline-block; margin-right: 10px; }
+  </style>
+  <div class="bottom-nav">
+    <a href="index.html" class="bottom-nav__item bottom-nav__item--active">Home</a>
+    <a href="stellplaetze.html" class="bottom-nav__item">Profil</a>
+  </div>
+</body>
+</html>

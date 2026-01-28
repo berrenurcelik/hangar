@@ -46,20 +46,37 @@ public class SpecializationService {
         
         return hp;
     }
-    
+
     /**
-     * UC HA.4.2: addNewType
-     * 1: create(name, type, size) -> aircraftType:AircraftType
-     * 1.1: add(aircraftType) -> ACTypeCatalog
+     * HA.4: Spezialisierung setzen – ersetzt die aktuelle Auswahl durch aircraftTypeIds.
+     */
+    @Transactional
+    public HangarProvider setTypes(Long hpId, List<Long> aircraftTypeIds) {
+        HangarProvider hp = hpCatalog.getHP(hpId);
+        hp.getAircraftTypes().clear();
+        if (aircraftTypeIds != null && !aircraftTypeIds.isEmpty()) {
+            for (Long id : aircraftTypeIds) {
+                hp.add(acTypeCatalog.get(id));
+            }
+        }
+        hpCatalog.update(hp);
+        return hp;
+    }
+    
+    /** HA.4 4b: Erlaubte Zeichen für Flugzeugtyp-Name */
+    private static final java.util.regex.Pattern VALID_NAME_PATTERN = java.util.regex.Pattern.compile("^[a-zA-Z0-9\\s\\-äöüÄÖÜß,.]+$");
+
+    /**
+     * UC HA.4.2: addNewType. StR.L.4 4a: Duplikat → "Flugzeugtyp existiert bereits"; 4b: Ungültige Zeichen → "Ungültige Zeichen im Flugzeugtyp"
      */
     @Transactional
     public AircraftType addNewType(String name, String type, String size) {
-        // 1: AircraftType erstellen
-        AircraftType aircraftType = new AircraftType(name, type, size);
-        
-        // 1.1: Zum ACTypeCatalog hinzufügen
+        if (name == null || name.isBlank()) throw new IllegalArgumentException("Ungültige Zeichen im Flugzeugtyp");
+        String n = name.trim();
+        if (!VALID_NAME_PATTERN.matcher(n).matches()) throw new IllegalArgumentException("Ungültige Zeichen im Flugzeugtyp");
+        if (acTypeCatalog.existsByName(n)) throw new IllegalArgumentException("Flugzeugtyp existiert bereits");
+        AircraftType aircraftType = new AircraftType(n, type != null ? type.trim() : "", size != null ? size.trim() : "");
         acTypeCatalog.add(aircraftType);
-        
         return aircraftType;
     }
     

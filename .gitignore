@@ -36,3 +36,12 @@ build/
 
 ### Mac OS ###
 .DS_Store
+
+### Docker ###
+docker-compose.override.yml
+*.dump
+*.sql.backup
+
+### Database Backups ###
+backup/
+*.backup
