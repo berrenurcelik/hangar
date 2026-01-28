@@ -96,11 +96,30 @@ Beim ersten Start einer leeren Datenbank erzeugt der `DataLoader` automatisch Te
   - Passwort: `hp123`  
   - Name: Sky Hangar GmbH  
   - Standort: Berlin  
-  - Verfügt über: 4 eingelagerte Flugzeuge, 5 Services, 2 ServiceRequests (HA.6), 1 Appointment (HA.7), Spezialisierung (3 Flugzeugtypen), Stellplätze
+  - Verfügt über: 4 eingelagerte Flugzeuge, 5 Services, 2 ServiceRequests , 1 Appointment , Spezialisierung (3 Flugzeugtypen), Stellplätze
 
 Mit diesen Test‑Benutzern können alle Use Cases direkt getestet werden, ohne neue Konten anzulegen. Die Initialdaten decken die wichtigsten Szenarien ab.
 
 Ist bereits Inhalt in der Datenbank vorhanden, überspringt der DataLoader den Import.
+
+## Screenshots
+
+Einige Beispielansichten aus der Anwendung:
+
+- **Hangaranbieter‑Dashboard (HA)**  
+  ![Hangaranbieter-Dashboard](assets/dashboard-ha.png)
+
+- **Flugzeugbesitzer‑Profil (FB)**  
+  ![Flugzeugbesitzer-Profil](assets/profile-fb.png)
+
+- **Hangaranbieter‑Profil (HA)**  
+  ![Hangaranbieter-Profil](assets/image-f0283c7e-3976-4964-8d96-02de703f4eff.png)
+
+- **Hangaranbieter‑Profil – Schnellzugriff (HA)**  
+  ![Hangaranbieter-Profil Schnellzugriff](assets/hp-profile.png)
+
+- **Meine Angebote (FB)**  
+  ![Meine Angebote](assets/meine-angebote.png)
 
 ## Architektur – Überblick
 
