@@ -147,7 +147,7 @@ Nach dem Login als Hangaranbieter erscheint das **Dashboard** mit Kacheln für d
 
 ### 4.2 Rollenwechsel
 
-- Ein Wechsel zwischen Flugzeugbesitzer und Hangaranbieter ist **nicht** vorgesehen: Ein Konto gehört entweder zur Rolle FB oder HA. Für die andere Rolle ist eine **separate Registrierung** mit anderer E-Mail nötig.
+- Ein Wechsel zwischen Flugzeugbesitzer und Hangaranbieter ist **nicht** vorgesehen: Ein Konto gehört entweder zur Rolle FB oder HA. 
 
 ### 4.3 Browser und Geräte
 

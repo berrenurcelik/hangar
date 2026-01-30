@@ -211,7 +211,7 @@ Damit stehen sofort Testbenutzer (z. B. FB: max@example.com, HA: sky@hangar.de) 
 
 - **Transaktionen:** Geschäftslogik in Services mit `@Transactional` (Lesen/Schreiben konsistent).
 - **Fehlerbehandlung:** Services werfen bei Verletzungen `RuntimeException` oder `IllegalArgumentException`; Controller fangen ab und liefern HTTP 400/404 mit optionalem JSON-Body.
-- **Rollen:** Zugriff auf FB- bzw. HA-spezifische Endpunkte wird serverseitig über die Zuordnung der E-Mail zu AircraftOwner bzw. HangarProvider realisiert; eine feinere Berechtigung (z. B. JWT) kann ergänzt werden.
+- **Rollen:** Zugriff auf FB- bzw. HA-spezifische Endpunkte wird serverseitig über die Zuordnung der E-Mail zu AircraftOwner bzw. HangarProvider realisiert.
 - **Frontend:** Kein separates Build; statische Dateien werden von Spring Boot unter `/` ausgeliefert; API unter `/api`.
 
 ---
