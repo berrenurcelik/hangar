@@ -118,6 +118,11 @@ Einige Beispielansichten aus der Anwendung:
 - **Meine Angebote (FB)**  
   ![Meine Angebote](assets/meine-angebote.png)
 
+## Dokumentation
+
+- **[Programmdokumentation](docs/Programmdokumentation.md)** – Programmstruktur, Architektur, Entities, Services, Controller, Frontend und Use-Case-Zuordnung (für Entwickler).
+- **[Benutzerhandbuch](docs/Benutzerhandbuch.md)** – Anleitung für Endnutzer: Registrierung, Login, Funktionen für Flugzeugbesitzer (FB) und Hangaranbieter (HA).
+
 ## Architektur – Überblick
 
 Die Anwendung folgt dem klassischen Spring‑Boot‑Schema:
